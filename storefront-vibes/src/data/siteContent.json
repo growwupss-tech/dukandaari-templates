@@ -1,0 +1,252 @@
+{
+  "brand": {
+    "name": "ShopHub",
+    "tagline": "Your Premium Shopping Destination",
+    "logo": "/logo.png",
+    "whatsappNumber": ""
+  },
+  "hero": {
+    "slides": [
+      {
+        "image": "/src/assets/hero-slide-1.jpg",
+        "title": "Discover Amazing Products",
+        "description": "Shop the latest trends with unbeatable prices"
+      },
+      {
+        "image": "/src/assets/hero-slide-2.jpg",
+        "title": "Premium Quality Guaranteed",
+        "description": "Experience excellence in every purchase"
+      },
+      {
+        "image": "/src/assets/hero-slide-3.jpg",
+        "title": "Fast & Secure Delivery",
+        "description": "Get your orders delivered right to your doorstep"
+      }
+    ]
+  },
+  "services": [
+    {
+      "icon": "Truck",
+      "title": "Free Shipping",
+      "description": "On orders over $100"
+    },
+    {
+      "icon": "Shield",
+      "title": "Secure Payment",
+      "description": "100% protected"
+    },
+    {
+      "icon": "Headphones",
+      "title": "24/7 Support",
+      "description": "Dedicated customer service"
+    },
+    {
+      "icon": "RotateCcw",
+      "title": "Easy Returns",
+      "description": "30-day return policy"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Premium Wireless Headphones",
+      "price": 199.99,
+      "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500",
+      "category": "Electronics",
+      "description": "High-quality wireless headphones with noise cancellation",
+      "rating": 4.8,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 2,
+      "name": "Stylish Leather Wallet",
+      "price": 49.99,
+      "image": "https://images.unsplash.com/photo-1627123424574-724758594e93?w=500",
+      "category": "Fashion",
+      "description": "Genuine leather wallet with multiple card slots",
+      "rating": 4.5,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 3,
+      "name": "Modern Table Lamp",
+      "price": 79.99,
+      "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=500",
+      "category": "Home",
+      "description": "Elegant table lamp with adjustable brightness",
+      "rating": 4.3,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 4,
+      "name": "Luxury Skincare Set",
+      "price": 129.99,
+      "image": "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=500",
+      "category": "Beauty",
+      "description": "Complete skincare routine with natural ingredients",
+      "rating": 4.9,
+      "inStock": false,
+      "visibility": false
+    },
+    {
+      "id": 5,
+      "name": "Smart Watch Pro",
+      "price": 299.99,
+      "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500",
+      "category": "Electronics",
+      "description": "Advanced fitness tracking and health monitoring",
+      "rating": 4.7,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 6,
+      "name": "Designer Handbag",
+      "price": 249.99,
+      "image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500",
+      "category": "Fashion",
+      "description": "Premium quality designer handbag with spacious interior",
+      "rating": 4.6,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 7,
+      "name": "Ceramic Vase Set",
+      "price": 59.99,
+      "image": "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500",
+      "category": "Home",
+      "description": "Set of 3 handcrafted ceramic vases",
+      "rating": 4.4,
+      "inStock": true,
+      "visibility": true
+    },
+    {
+      "id": 8,
+      "name": "Organic Perfume",
+      "price": 89.99,
+      "image": "https://images.unsplash.com/photo-1541643600914-78b084683601?w=500",
+      "category": "Beauty",
+      "description": "100% organic fragrance with long-lasting scent",
+      "rating": 4.2,
+      "inStock": true,
+      "visibility": true
+    }
+  ],
+  "brandShowcase": {
+    "title": "Our Story",
+    "subtitle": "Building Excellence Since Day One",
+    "description": "We believe in providing not just products, but experiences that enhance your lifestyle. Our commitment to quality and customer satisfaction drives everything we do.",
+    "stats": [
+      {
+        "value": "50K+",
+        "label": "Happy Customers"
+      },
+      {
+        "value": "1000+",
+        "label": "Products"
+      },
+      {
+        "value": "5+",
+        "label": "Years Experience"
+      },
+      {
+        "value": "99%",
+        "label": "Satisfaction Rate"
+      }
+    ]
+  },
+  "brandGallery": [
+    {
+      "url": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800",
+      "text": "Curated Collections"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=800",
+      "text": "Premium Quality"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800",
+      "text": "Exceptional Service"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1525328437458-0c4d4db7cab4?w=800",
+      "text": "Sustainable Choices"
+    }
+  ],
+  "reviews": [
+    {
+      "name": "Sarah Johnson",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+      "rating": 5,
+      "comment": "Absolutely love the quality of products! Fast shipping and excellent customer service.",
+      "date": "2024-01-15"
+    },
+    {
+      "name": "Michael Chen",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
+      "rating": 5,
+      "comment": "Great selection and competitive prices. Will definitely shop here again!",
+      "date": "2024-01-10"
+    },
+    {
+      "name": "Emma Williams",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
+      "rating": 4,
+      "comment": "Good experience overall. Products arrived as described.",
+      "date": "2024-01-08"
+    },
+    {
+      "name": "David Brown",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=David",
+      "rating": 5,
+      "comment": "Exceptional quality and service. Highly recommend!",
+      "date": "2024-01-05"
+    }
+  ],
+  "footer": {
+    "about": "Your trusted destination for quality products and exceptional service. We're committed to bringing you the best shopping experience.",
+    "sections": [
+      {
+        "title": "Quick Links",
+        "links": [
+          { "label": "About Us", "href": "#about" },
+          { "label": "Products", "href": "#products" },
+          { "label": "Services", "href": "#services" },
+          { "label": "Contact", "href": "#contact" }
+        ]
+      },
+      {
+        "title": "Customer Service",
+        "links": [
+          { "label": "FAQ", "href": "#faq" },
+          { "label": "Shipping Info", "href": "#shipping" },
+          { "label": "Returns", "href": "#returns" },
+          { "label": "Track Order", "href": "#track" }
+        ]
+      },
+      {
+        "title": "Legal",
+        "links": [
+          { "label": "Privacy Policy", "href": "#privacy" },
+          { "label": "Terms of Service", "href": "#terms" },
+          { "label": "Cookie Policy", "href": "#cookies" }
+        ]
+      }
+    ],
+    "social": {
+      "facebook": "#",
+      "twitter": "#",
+      "instagram": "#",
+      "youtube": "#"
+    },
+    "contact": {
+      "email": "contact@shophub.com",
+      "phone": "+1 (555) 123-4567",
+      "address": "123 Commerce Street, City, State 12345"
+    }
+  }
+}
