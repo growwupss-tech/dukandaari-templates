@@ -1,0 +1,10 @@
+[
+  {
+    "id": "cat-1",
+    "sellerId": "seller-default",
+    "name": "Sample Category",
+    "description": "",
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  }
+]
+

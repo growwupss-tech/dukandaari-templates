@@ -1,0 +1,281 @@
+{
+  "sellerId": "seller-default",
+  "totalVisitors": 1247,
+  "whatsappInquiries": 89,
+  "productViews": 3456,
+  "productPerformance": {
+    "lastDay": [
+      {
+        "id": "1",
+        "productId": "prod-1",
+        "name": "Premium Leather Wallet",
+        "views": 23,
+        "inquiries": 2,
+        "clicks": 8,
+        "conversionRate": 8.7
+      },
+      {
+        "id": "2",
+        "productId": "prod-2",
+        "name": "Wireless Headphones",
+        "views": 45,
+        "inquiries": 5,
+        "clicks": 12,
+        "conversionRate": 11.1
+      },
+      {
+        "id": "3",
+        "productId": "prod-3",
+        "name": "Smart Watch Pro",
+        "views": 34,
+        "inquiries": 3,
+        "clicks": 9,
+        "conversionRate": 8.8
+      },
+      {
+        "id": "4",
+        "productId": "prod-4",
+        "name": "Designer Sunglasses",
+        "views": 28,
+        "inquiries": 2,
+        "clicks": 7,
+        "conversionRate": 7.1
+      },
+      {
+        "id": "5",
+        "productId": "prod-5",
+        "name": "Portable Speaker",
+        "views": 19,
+        "inquiries": 1,
+        "clicks": 5,
+        "conversionRate": 5.3
+      },
+      {
+        "id": "6",
+        "productId": "prod-6",
+        "name": "Canvas Backpack",
+        "views": 38,
+        "inquiries": 4,
+        "clicks": 11,
+        "conversionRate": 10.5
+      }
+    ],
+    "lastWeek": [
+      {
+        "id": "1",
+        "productId": "prod-1",
+        "name": "Premium Leather Wallet",
+        "views": 134,
+        "inquiries": 8,
+        "clicks": 27,
+        "conversionRate": 6.0
+      },
+      {
+        "id": "2",
+        "productId": "prod-2",
+        "name": "Wireless Headphones",
+        "views": 245,
+        "inquiries": 15,
+        "clicks": 48,
+        "conversionRate": 6.1
+      },
+      {
+        "id": "3",
+        "productId": "prod-3",
+        "name": "Smart Watch Pro",
+        "views": 198,
+        "inquiries": 11,
+        "clicks": 39,
+        "conversionRate": 5.6
+      },
+      {
+        "id": "4",
+        "productId": "prod-4",
+        "name": "Designer Sunglasses",
+        "views": 167,
+        "inquiries": 9,
+        "clicks": 32,
+        "conversionRate": 5.4
+      },
+      {
+        "id": "5",
+        "productId": "prod-5",
+        "name": "Portable Speaker",
+        "views": 123,
+        "inquiries": 6,
+        "clicks": 23,
+        "conversionRate": 4.9
+      },
+      {
+        "id": "6",
+        "productId": "prod-6",
+        "name": "Canvas Backpack",
+        "views": 189,
+        "inquiries": 12,
+        "clicks": 41,
+        "conversionRate": 6.3
+      }
+    ],
+    "lastMonth": [
+      {
+        "id": "1",
+        "productId": "prod-1",
+        "name": "Premium Leather Wallet",
+        "views": 456,
+        "inquiries": 23,
+        "clicks": 89,
+        "conversionRate": 5.0
+      },
+      {
+        "id": "2",
+        "productId": "prod-2",
+        "name": "Wireless Headphones",
+        "views": 782,
+        "inquiries": 45,
+        "clicks": 156,
+        "conversionRate": 5.8
+      },
+      {
+        "id": "3",
+        "productId": "prod-3",
+        "name": "Smart Watch Pro",
+        "views": 634,
+        "inquiries": 31,
+        "clicks": 127,
+        "conversionRate": 4.9
+      },
+      {
+        "id": "4",
+        "productId": "prod-4",
+        "name": "Designer Sunglasses",
+        "views": 523,
+        "inquiries": 28,
+        "clicks": 98,
+        "conversionRate": 5.4
+      },
+      {
+        "id": "5",
+        "productId": "prod-5",
+        "name": "Portable Speaker",
+        "views": 421,
+        "inquiries": 19,
+        "clicks": 76,
+        "conversionRate": 4.5
+      },
+      {
+        "id": "6",
+        "productId": "prod-6",
+        "name": "Canvas Backpack",
+        "views": 640,
+        "inquiries": 34,
+        "clicks": 143,
+        "conversionRate": 5.3
+      }
+    ],
+    "allTime": [
+      {
+        "id": "1",
+        "productId": "prod-1",
+        "name": "Premium Leather Wallet",
+        "views": 1823,
+        "inquiries": 89,
+        "clicks": 342,
+        "conversionRate": 4.9
+      },
+      {
+        "id": "2",
+        "productId": "prod-2",
+        "name": "Wireless Headphones",
+        "views": 3245,
+        "inquiries": 178,
+        "clicks": 623,
+        "conversionRate": 5.5
+      },
+      {
+        "id": "3",
+        "productId": "prod-3",
+        "name": "Smart Watch Pro",
+        "views": 2567,
+        "inquiries": 123,
+        "clicks": 489,
+        "conversionRate": 4.8
+      },
+      {
+        "id": "4",
+        "productId": "prod-4",
+        "name": "Designer Sunglasses",
+        "views": 2134,
+        "inquiries": 107,
+        "clicks": 398,
+        "conversionRate": 5.0
+      },
+      {
+        "id": "5",
+        "productId": "prod-5",
+        "name": "Portable Speaker",
+        "views": 1678,
+        "inquiries": 76,
+        "clicks": 289,
+        "conversionRate": 4.5
+      },
+      {
+        "id": "6",
+        "productId": "prod-6",
+        "name": "Canvas Backpack",
+        "views": 2456,
+        "inquiries": 134,
+        "clicks": 512,
+        "conversionRate": 5.5
+      }
+    ]
+  },
+  "visitorData": {
+    "last15Days": [
+      { "date": "Day 1", "visitors": 45 },
+      { "date": "Day 2", "visitors": 52 },
+      { "date": "Day 3", "visitors": 48 },
+      { "date": "Day 4", "visitors": 61 },
+      { "date": "Day 5", "visitors": 55 },
+      { "date": "Day 6", "visitors": 67 },
+      { "date": "Day 7", "visitors": 71 },
+      { "date": "Day 8", "visitors": 58 },
+      { "date": "Day 9", "visitors": 63 },
+      { "date": "Day 10", "visitors": 70 },
+      { "date": "Day 11", "visitors": 76 },
+      { "date": "Day 12", "visitors": 68 },
+      { "date": "Day 13", "visitors": 82 },
+      { "date": "Day 14", "visitors": 79 },
+      { "date": "Day 15", "visitors": 85 }
+    ],
+    "last30Days": [
+      { "date": "Week 1", "visitors": 245 },
+      { "date": "Week 2", "visitors": 289 },
+      { "date": "Week 3", "visitors": 312 },
+      { "date": "Week 4", "visitors": 401 }
+    ],
+    "last6Months": [
+      { "date": "Month 1", "visitors": 1120 },
+      { "date": "Month 2", "visitors": 1340 },
+      { "date": "Month 3", "visitors": 1580 },
+      { "date": "Month 4", "visitors": 1890 },
+      { "date": "Month 5", "visitors": 2150 },
+      { "date": "Month 6", "visitors": 2340 }
+    ],
+    "lastYear": [
+      { "date": "Jan", "visitors": 1820 },
+      { "date": "Feb", "visitors": 1950 },
+      { "date": "Mar", "visitors": 2100 },
+      { "date": "Apr", "visitors": 2280 },
+      { "date": "May", "visitors": 2450 },
+      { "date": "Jun", "visitors": 2680 },
+      { "date": "Jul", "visitors": 2890 },
+      { "date": "Aug", "visitors": 3120 },
+      { "date": "Sep", "visitors": 3340 },
+      { "date": "Oct", "visitors": 3580 },
+      { "date": "Nov", "visitors": 3820 },
+      { "date": "Dec", "visitors": 4050 }
+    ]
+  },
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+

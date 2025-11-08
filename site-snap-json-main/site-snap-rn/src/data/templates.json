@@ -1,0 +1,31 @@
+[
+  {
+    "id": "modern-minimal",
+    "name": "Modern Minimal",
+    "category": "portfolio",
+    "thumbnail": "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop",
+    "description": "Clean and minimal design perfect for portfolios"
+  },
+  {
+    "id": "vibrant-catalog",
+    "name": "Vibrant Catalog",
+    "category": "product",
+    "thumbnail": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop",
+    "description": "Bold and colorful template for product showcases"
+  },
+  {
+    "id": "elegant-showcase",
+    "name": "Elegant Showcase",
+    "category": "portfolio",
+    "thumbnail": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop",
+    "description": "Sophisticated design for creative professionals"
+  },
+  {
+    "id": "modern-store",
+    "name": "Modern Store",
+    "category": "product",
+    "thumbnail": "https://images.unsplash.com/photo-1551650975-87deedd944c3?w=400&h=300&fit=crop",
+    "description": "Contemporary e-commerce style template"
+  }
+]
+

@@ -1,0 +1,13 @@
+{
+  "id": "seller-default",
+  "name": "",
+  "businessName": "",
+  "businessType": "",
+  "phone": "",
+  "workAddress": "",
+  "selectedTemplateIds": [],
+  "isOnboarded": false,
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+
