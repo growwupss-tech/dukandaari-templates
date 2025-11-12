@@ -1,13 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Import JSON data files (bundled with app)
-import defaultSellerData from '../data/seller.json';
-import defaultCategoriesData from '../data/categories.json';
-import defaultProductsData from '../data/products.json';
 import templatesData from '../data/templates.json';
-import defaultAnalyticsData from '../data/analytics.json';
+import { apiClient } from '../lib/apiClient';
+import { getCurrentUser, AuthUser } from './authService';
 
-// Type definitions
 export interface Seller {
   id: string;
   name: string;
@@ -33,14 +27,14 @@ export interface Category {
   id: string;
   sellerId: string;
   name: string;
-  description: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
   id: string;
   sellerId: string;
-  categoryId: string;
+  categoryId: string | null;
   name: string;
   price: number;
   description: string;
@@ -50,8 +44,27 @@ export interface Product {
   specifications: string[];
   attributes: { name: string; values: string[] }[];
   visible: number;
+  views: number;
+  clicks: number;
+  inquiries: number;
+  conversionRate: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductPerformance {
+  id: string;
+  productId: string;
+  name: string;
+  views: number;
+  inquiries: number;
+  clicks: number;
+  conversionRate: number;
+}
+
+export interface VisitorDataPoint {
+  date: string;
+  visitors: number;
 }
 
 export interface Analytics {
@@ -74,107 +87,338 @@ export interface Analytics {
   updatedAt: string;
 }
 
-export interface ProductPerformance {
-  id: string;
-  productId: string;
-  name: string;
-  views: number;
-  inquiries: number;
-  clicks: number;
-  conversionRate: number;
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  count?: number;
+  message?: string;
 }
 
-export interface VisitorDataPoint {
-  date: string;
-  visitors: number;
+interface ApiListResponse<T> {
+  success: boolean;
+  data: T[];
+  count: number;
 }
 
-// Data Service Class
+type ApiSeller = {
+  _id: string;
+  name?: string;
+  phone_number?: string;
+  whatsapp_number?: string;
+  address?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApiBusiness = {
+  _id: string;
+  business_name?: string;
+  business_tagline?: string;
+  business_email_add?: string;
+  template_id?: number;
+  seller_id?: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApiCategory = {
+  _id: string;
+  category_name: string;
+  seller_id: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApiProduct = {
+  _id: string;
+  product_name: string;
+  product_descriptio?: string;
+  price?: number;
+  images?: string[];
+  is_visible?: boolean;
+  inventory?: string;
+  category_id?: any;
+  seller_id?: any;
+  attribute_ids?: any[];
+  visits?: number;
+  redirects?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApiAnalytics = {
+  _id: string;
+  business_id: any;
+  product_ids: any[];
+  views?: number;
+  clicks?: number;
+  date?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const TEMPLATE_ID_MAP: Record<string, number> = {
+  Portfolio: 1,
+  'Product Seller': 2,
+};
+
+const TEMPLATE_KEY_TO_NUM: Record<string, number> = {};
+const NUM_TO_TEMPLATE_KEY: Record<number, string> = {};
+
+(templatesData as Template[]).forEach((template, index) => {
+  const numericId = index + 1;
+  TEMPLATE_KEY_TO_NUM[template.id] = numericId;
+  NUM_TO_TEMPLATE_KEY[numericId] = template.id;
+});
+
 class DataService {
-  private SELLER_KEY = 'seller_data';
-  private PRODUCTS_KEY = 'products_data';
-  private CATEGORIES_KEY = 'categories_data';
-  private ANALYTICS_KEY = 'analytics_data';
-  private INITIALIZED_KEY = 'data_initialized';
+  private user: AuthUser | null = null;
+  private sellerRecord: ApiSeller | null = null;
+  private businessRecord: ApiBusiness | null = null;
 
-  // Generate unique ID
-  generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  // Initialize data from JSON files on first run
-  private async initializeFromJSON(): Promise<void> {
-    try {
-      const initialized = await AsyncStorage.getItem(this.INITIALIZED_KEY);
-      
-      if (!initialized) {
-        console.log('Initializing data from JSON files...');
-        
-        // Initialize seller
-        await AsyncStorage.setItem(this.SELLER_KEY, JSON.stringify(defaultSellerData));
-        
-        // Initialize categories
-        await AsyncStorage.setItem(this.CATEGORIES_KEY, JSON.stringify(defaultCategoriesData));
-        
-        // Initialize products
-        await AsyncStorage.setItem(this.PRODUCTS_KEY, JSON.stringify(defaultProductsData));
-        
-        // Initialize analytics
-        await AsyncStorage.setItem(this.ANALYTICS_KEY, JSON.stringify(defaultAnalyticsData));
-        
-        // Mark as initialized
-        await AsyncStorage.setItem(this.INITIALIZED_KEY, 'true');
-        
-        console.log('Data initialized from JSON files successfully!');
+  private async loadUser(refresh = false): Promise<AuthUser | null> {
+    if (!this.user || refresh) {
+      try {
+        this.user = await getCurrentUser();
+      } catch (error) {
+        this.user = null;
       }
-    } catch (error) {
-      console.error('Error initializing data from JSON:', error);
     }
+    return this.user;
   }
 
-  // Seller operations
+  private extractId(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value._id) return value._id;
+    return null;
+  }
+
+  private async fetchSellerRecord(): Promise<ApiSeller | null> {
+    const user = await this.loadUser();
+    const sellerId = this.extractId(user?.seller_id);
+    if (!sellerId) {
+      this.sellerRecord = null;
+      return null;
+    }
+
+    if (this.sellerRecord && this.sellerRecord._id === sellerId) {
+      return this.sellerRecord;
+    }
+
+    const response = await apiClient.get<ApiResponse<ApiSeller>>(`/api/sellers/${sellerId}`);
+    this.sellerRecord = response.data.data;
+    return this.sellerRecord;
+  }
+
+  private async fetchBusinessRecord(): Promise<ApiBusiness | null> {
+    const sellerRecord = await this.fetchSellerRecord();
+    const sellerId = sellerRecord?._id;
+    if (!sellerId) {
+      this.businessRecord = null;
+      return null;
+    }
+
+    if (this.businessRecord && this.extractId(this.businessRecord.seller_id) === sellerId) {
+      return this.businessRecord;
+    }
+
+    const response = await apiClient.get<ApiListResponse<ApiBusiness>>(`/api/businesses/seller/${sellerId}`);
+    this.businessRecord = response.data.data[0] ?? null;
+    return this.businessRecord;
+  }
+
+  private mapSeller(seller: ApiSeller | null, business: ApiBusiness | null): Seller {
+    return {
+      id: seller?._id ?? '',
+      name: seller?.name ?? '',
+      businessName: business?.business_name ?? '',
+      businessType: business?.business_tagline ?? '',
+      phone: seller?.phone_number ?? '',
+      workAddress: seller?.address ?? '',
+      selectedTemplateIds: business?.template_id
+        ? [
+            NUM_TO_TEMPLATE_KEY[business.template_id] ??
+              String(business.template_id),
+          ]
+        : [],
+      isOnboarded: Boolean(seller),
+      createdAt: seller?.createdAt ?? new Date().toISOString(),
+      updatedAt: seller?.updatedAt ?? new Date().toISOString(),
+    };
+  }
+
+  private mapCategory(category: ApiCategory): Category {
+    return {
+      id: category._id,
+      sellerId: this.extractId(category.seller_id) ?? '',
+      name: category.category_name,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    };
+  }
+
+  private normalizeInventory(value?: string): 'none' | 'in stock' | 'out of stock' {
+    if (!value) return 'none';
+    const normalized = value.toLowerCase();
+    if (normalized.includes('out')) return 'out of stock';
+    if (normalized.includes('in')) return 'in stock';
+    return 'none';
+  }
+
+  private mapProduct(product: ApiProduct): Product {
+    const views = product.visits ?? 0;
+    const clicks = product.redirects ?? 0;
+    const inquiries = 0;
+    const conversionRate = views > 0 ? Number(((clicks / views) * 100).toFixed(1)) : 0;
+
+    return {
+      id: product._id,
+      sellerId: this.extractId(product.seller_id) ?? '',
+      categoryId: this.extractId(product.category_id),
+      name: product.product_name,
+      price: Number(product.price ?? 0),
+      description: product.product_descriptio ?? '',
+      images: product.images ?? [],
+      videos: [],
+      inventory: this.normalizeInventory(product.inventory),
+      specifications: [],
+      attributes: [],
+      visible: product.is_visible ? 1 : 0,
+      views,
+      clicks,
+      inquiries,
+      conversionRate,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  }
+
+  private async ensureBusinessForSeller(): Promise<ApiBusiness> {
+    const user = await this.loadUser();
+    const sellerRecord = await this.fetchSellerRecord();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    if (!sellerRecord) {
+      throw new Error('Seller profile not found');
+    }
+
+    const sellerId = sellerRecord._id;
+    const existingBusiness = await this.fetchBusinessRecord();
+    if (existingBusiness) {
+      return existingBusiness;
+    }
+
+    const payload = {
+      business_name: sellerRecord.name || 'My Business',
+      business_email_add: user.email ?? `${sellerRecord._id}@sitesnap.app`,
+      seller_id: sellerId,
+      business_tagline: '',
+      template_id: 1,
+    };
+
+    const response = await apiClient.post<ApiResponse<ApiBusiness>>('/api/businesses', payload);
+    this.businessRecord = response.data.data;
+    return this.businessRecord;
+  }
+
+  private buildSellerPayload(updates: Partial<Seller>) {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.phone !== undefined) {
+      payload.phone_number = updates.phone;
+      payload.whatsapp_number = updates.phone;
+    }
+    if (updates.workAddress !== undefined) payload.address = updates.workAddress;
+    return payload;
+  }
+
+  private buildBusinessPayload(
+    updates: Partial<Seller>,
+    currentBusiness: ApiBusiness | null,
+    user: AuthUser | null
+  ) {
+    const payload: any = {};
+    if (updates.businessName !== undefined) payload.business_name = updates.businessName;
+    if (updates.businessType !== undefined) payload.business_tagline = updates.businessType;
+    if (
+      updates.selectedTemplateIds !== undefined &&
+      updates.selectedTemplateIds.length > 0
+    ) {
+      const templateKey = updates.selectedTemplateIds[0];
+      const numericFromString = Number(templateKey);
+      const numericTemplate = !Number.isNaN(numericFromString)
+        ? numericFromString
+        : TEMPLATE_KEY_TO_NUM[templateKey] ?? TEMPLATE_ID_MAP[templateKey] ?? 1;
+      payload.template_id = numericTemplate;
+    }
+    if (!payload.business_email_add) {
+      payload.business_email_add =
+        currentBusiness?.business_email_add ?? user?.email ?? 'support@sitesnap.app';
+    }
+    return payload;
+  }
+
   async getSeller(): Promise<Seller> {
-    await this.initializeFromJSON();
-    
-    try {
-      const stored = await AsyncStorage.getItem(this.SELLER_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Error getting seller:', error);
-    }
-
-    // Fallback to default
-    return defaultSellerData as Seller;
-  }
-
-  async saveSeller(seller: Seller): Promise<void> {
-    try {
-      seller.updatedAt = new Date().toISOString();
-      await AsyncStorage.setItem(this.SELLER_KEY, JSON.stringify(seller));
-    } catch (error) {
-      console.error('Error saving seller:', error);
-    }
+    const sellerRecord = await this.fetchSellerRecord();
+    const businessRecord = await this.fetchBusinessRecord();
+    return this.mapSeller(sellerRecord, businessRecord);
   }
 
   async updateSeller(updates: Partial<Omit<Seller, 'id' | 'createdAt'>>): Promise<Seller> {
-    const seller = await this.getSeller();
-    const updatedSeller = { ...seller, ...updates };
-    await this.saveSeller(updatedSeller);
-    return updatedSeller;
+    const user = await this.loadUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    let sellerRecord = await this.fetchSellerRecord();
+    const sellerPayload = this.buildSellerPayload(updates);
+
+    if (sellerRecord) {
+      if (Object.keys(sellerPayload).length > 0) {
+        const response = await apiClient.put<ApiResponse<ApiSeller>>(
+          `/api/sellers/${sellerRecord._id}`,
+          sellerPayload
+        );
+        sellerRecord = response.data.data;
+        this.sellerRecord = sellerRecord;
+      }
+    } else {
+      const createPayload = {
+        ...sellerPayload,
+        name: updates.name ?? 'New Seller',
+      };
+      const response = await apiClient.post<ApiResponse<ApiSeller>>('/api/sellers', createPayload);
+      sellerRecord = response.data.data;
+      this.sellerRecord = sellerRecord;
+      await this.loadUser(true);
+    }
+
+    const businessRecord = await this.ensureBusinessForSeller();
+    const businessPayload = this.buildBusinessPayload(updates, businessRecord, user);
+
+    if (Object.keys(businessPayload).length > 0) {
+      const response = await apiClient.put<ApiResponse<ApiBusiness>>(
+        `/api/businesses/${businessRecord._id}`,
+        businessPayload
+      );
+      this.businessRecord = response.data.data;
+    }
+
+    // Refresh caches to ensure latest data is returned
+    this.sellerRecord = null;
+    this.businessRecord = null;
+
+    return this.getSeller();
   }
 
-  // Template operations (loaded from JSON, read-only)
   async getTemplates(): Promise<Template[]> {
-    // Templates are loaded directly from bundled JSON
     return templatesData as Template[];
   }
 
   async linkTemplatesToSeller(templateIds: string[]): Promise<void> {
-    const seller = await this.getSeller();
-    seller.selectedTemplateIds = templateIds;
-    await this.saveSeller(seller);
+    await this.updateSeller({ selectedTemplateIds: templateIds });
   }
 
   async getSelectedTemplates(): Promise<string[]> {
@@ -182,306 +426,253 @@ class DataService {
     return seller.selectedTemplateIds;
   }
 
-  // Category operations
   async getCategories(): Promise<Category[]> {
-    await this.initializeFromJSON();
-    
-    try {
-      const stored = await AsyncStorage.getItem(this.CATEGORIES_KEY);
-      const seller = await this.getSeller();
-
-      if (stored) {
-        const categories = JSON.parse(stored);
-        return categories.filter((cat: Category) => cat.sellerId === seller.id);
-      }
-    } catch (error) {
-      console.error('Error getting categories:', error);
-    }
-
-    return [];
+    const response = await apiClient.get<ApiListResponse<ApiCategory>>('/api/categories');
+    return response.data.data.map((category) => this.mapCategory(category));
   }
 
-  async saveCategories(categories: Category[]): Promise<void> {
-    try {
-      const seller = await this.getSeller();
-      const allCategories = await this.getAllCategories();
-
-      const otherCategories = allCategories.filter(cat => cat.sellerId !== seller.id);
-      const linkedCategories = categories.map(cat => ({
-        ...cat,
-        sellerId: seller.id,
-      }));
-
-      await AsyncStorage.setItem(
-        this.CATEGORIES_KEY,
-        JSON.stringify([...otherCategories, ...linkedCategories])
-      );
-    } catch (error) {
-      console.error('Error saving categories:', error);
-    }
+  async saveCategories(categories: Category[]): Promise<Category[]> {
+    return categories;
   }
 
-  private async getAllCategories(): Promise<Category[]> {
-    try {
-      const stored = await AsyncStorage.getItem(this.CATEGORIES_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error('Error getting all categories:', error);
-      return [];
+  async addCategory(category: { name: string }): Promise<Category> {
+    const sellerRecord = await this.fetchSellerRecord();
+    if (!sellerRecord) {
+      throw new Error('Create seller profile before adding categories.');
     }
-  }
 
-  async addCategory(category: Omit<Category, 'id' | 'sellerId' | 'createdAt'>): Promise<Category> {
-    const seller = await this.getSeller();
-    const newCategory: Category = {
-      ...category,
-      id: this.generateId('category'),
-      sellerId: seller.id,
-      createdAt: new Date().toISOString(),
+    const payload = {
+      category_name: category.name,
+      seller_id: sellerRecord._id,
     };
 
-    const categories = await this.getCategories();
-    categories.push(newCategory);
-    await this.saveCategories(categories);
-
-    return newCategory;
+    const response = await apiClient.post<ApiResponse<ApiCategory>>('/api/categories', payload);
+    return this.mapCategory(response.data.data);
   }
 
-  // Product operations
+  async deleteCategory(categoryId: string): Promise<void> {
+    await apiClient.delete(`/api/categories/${categoryId}`);
+  }
+
   async getProducts(): Promise<Product[]> {
-    await this.initializeFromJSON();
-    
-    try {
-      const stored = await AsyncStorage.getItem(this.PRODUCTS_KEY);
-      const seller = await this.getSeller();
-
-      if (stored) {
-        const products = JSON.parse(stored);
-        return products
-          .filter((prod: any) => prod.sellerId === seller.id)
-          .map((prod: any) => {
-            // Ensure all fields exist
-            if (prod.specifications && prod.specifications.length > 0) {
-              const firstSpec = prod.specifications[0];
-              if (typeof firstSpec === 'object' && firstSpec.key !== undefined) {
-                prod.specifications = prod.specifications
-                  .map((s: any) => (s.key && s.value ? `${s.key}: ${s.value}` : ''))
-                  .filter((s: string) => s);
-              }
-            }
-            if (typeof prod.inventory === 'number') {
-              prod.inventory = prod.inventory > 0 ? 'in stock' : 'out of stock';
-            }
-            if (prod.visible === undefined) {
-              prod.visible = 1;
-            }
-            if (!prod.videos) {
-              prod.videos = [];
-            }
-            if (!prod.attributes) {
-              prod.attributes = [];
-            }
-            return prod;
-          });
-      }
-    } catch (error) {
-      console.error('Error getting products:', error);
-    }
-
-    return [];
+    const response = await apiClient.get<ApiListResponse<ApiProduct>>('/api/products');
+    return response.data.data.map((product) => this.mapProduct(product));
   }
 
-  async saveProducts(products: Product[]): Promise<void> {
-    try {
-      const seller = await this.getSeller();
-      const allProducts = await this.getAllProducts();
-
-      const otherProducts = allProducts.filter(prod => prod.sellerId !== seller.id);
-      const linkedProducts = products.map(prod => ({
-        ...prod,
-        sellerId: seller.id,
-      }));
-
-      await AsyncStorage.setItem(
-        this.PRODUCTS_KEY,
-        JSON.stringify([...otherProducts, ...linkedProducts])
-      );
-    } catch (error) {
-      console.error('Error saving products:', error);
+  private async ensureSellerId(): Promise<string> {
+    const sellerRecord = await this.fetchSellerRecord();
+    if (!sellerRecord) {
+      throw new Error('Seller profile not found. Please complete seller details first.');
     }
+    return sellerRecord._id;
   }
 
-  private async getAllProducts(): Promise<Product[]> {
-    try {
-      const stored = await AsyncStorage.getItem(this.PRODUCTS_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error('Error getting all products:', error);
-      return [];
+  private prepareProductPayload(product: Partial<Product>): any {
+    const payload: any = {};
+    if (product.name !== undefined) payload.product_name = product.name;
+    if (product.description !== undefined) payload.product_descriptio = product.description;
+    if (product.price !== undefined) payload.price = product.price;
+    if (product.inventory !== undefined) {
+      payload.inventory =
+        product.inventory === 'in stock'
+          ? 'In Stock'
+          : product.inventory === 'out of stock'
+          ? 'Out of Stock'
+          : 'None';
     }
+    if (product.categoryId !== undefined) payload.category_id = product.categoryId;
+    if (product.visible !== undefined) payload.is_visible = product.visible === 1;
+    if (product.images) {
+      payload.images = product.images.filter((uri) => uri.startsWith('http'));
+    }
+    return payload;
   }
 
-  async addProduct(product: Omit<Product, 'id' | 'sellerId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
-    const seller = await this.getSeller();
-    const newProduct: Product = {
-      ...product,
-      id: this.generateId('product'),
-      sellerId: seller.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  async addProduct(
+    product: Omit<Product, 'id' | 'sellerId' | 'createdAt' | 'updatedAt'>
+  ): Promise<Product> {
+    const sellerId = await this.ensureSellerId();
+    const payload = this.prepareProductPayload(product);
+    payload.seller_id = sellerId;
 
-    const products = await this.getProducts();
-    products.push(newProduct);
-    await this.saveProducts(products);
-
-    return newProduct;
+    const response = await apiClient.post<ApiResponse<ApiProduct>>('/api/products', payload);
+    return this.mapProduct(response.data.data);
   }
 
   async updateProduct(productId: string, updates: Partial<Product>): Promise<Product | null> {
-    const products = await this.getProducts();
-    const index = products.findIndex(p => p.id === productId);
-
-    if (index === -1) return null;
-
-    products[index] = {
-      ...products[index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await this.saveProducts(products);
-    return products[index];
+    const payload = this.prepareProductPayload(updates);
+    const response = await apiClient.put<ApiResponse<ApiProduct>>(
+      `/api/products/${productId}`,
+      payload
+    );
+    return this.mapProduct(response.data.data);
   }
 
   async deleteProduct(productId: string): Promise<boolean> {
-    const products = await this.getProducts();
-    const filtered = products.filter(p => p.id !== productId);
-
-    if (filtered.length === products.length) return false;
-
-    await this.saveProducts(filtered);
+    await apiClient.delete(`/api/products/${productId}`);
     return true;
   }
 
-  // Analytics operations
-  async getAnalytics(): Promise<Analytics> {
-    await this.initializeFromJSON();
-    
-    try {
-      const stored = await AsyncStorage.getItem(this.ANALYTICS_KEY);
-      const seller = await this.getSeller();
+  private buildVisitorSeries(records: ApiAnalytics[], days: number): VisitorDataPoint[] {
+    const today = new Date();
+    const series: VisitorDataPoint[] = [];
 
-      if (stored) {
-        const analytics = JSON.parse(stored);
-        if (analytics.sellerId === seller.id) {
-          return analytics;
-        }
-      }
-    } catch (error) {
-      console.error('Error getting analytics:', error);
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const key = date.toISOString().split('T')[0];
+      const visitors = records
+        .filter((record) => record.date && record.date.slice(0, 10) === key)
+        .reduce((sum, record) => sum + (record.views ?? 0), 0);
+      series.push({ date: key, visitors });
     }
 
-    // Return default analytics
-    const seller = await this.getSeller();
-    const defaultAnalytics = {
-      ...defaultAnalyticsData,
-      sellerId: seller.id,
-    };
-    
-    await this.saveAnalytics(defaultAnalytics as Analytics);
-    return defaultAnalytics as Analytics;
+    return series;
   }
 
-  async saveAnalytics(analytics: Analytics): Promise<void> {
-    try {
-      analytics.updatedAt = new Date().toISOString();
-      await AsyncStorage.setItem(this.ANALYTICS_KEY, JSON.stringify(analytics));
-    } catch (error) {
-      console.error('Error saving analytics:', error);
+  private buildMonthlySeries(records: ApiAnalytics[], months: number): VisitorDataPoint[] {
+    const today = new Date();
+    const series: VisitorDataPoint[] = [];
+
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const visitors = records
+        .filter((record) => {
+          if (!record.date) return false;
+          const recordDate = new Date(record.date);
+          return (
+            recordDate.getFullYear() === date.getFullYear() &&
+            recordDate.getMonth() === date.getMonth()
+          );
+        })
+        .reduce((sum, record) => sum + (record.views ?? 0), 0);
+      series.push({ date: key, visitors });
     }
+
+    return series;
+  }
+
+  private async buildAnalytics(): Promise<Analytics> {
+    const seller = await this.fetchSellerRecord();
+    const sellerId = seller?._id ?? '';
+
+    const [analyticsResponse, products] = await Promise.all([
+      apiClient.get<ApiListResponse<ApiAnalytics>>('/api/analytics'),
+      this.getProducts(),
+    ]);
+
+    const records = analyticsResponse.data.data ?? [];
+    const totalVisitors = records.reduce((sum, record) => sum + (record.views ?? 0), 0);
+    const totalClicks = records.reduce((sum, record) => sum + (record.clicks ?? 0), 0);
+
+    const performance: ProductPerformance[] = products.map((product) => ({
+      id: product.id,
+      productId: product.id,
+      name: product.name,
+      views: product.views,
+      inquiries: product.inquiries,
+      clicks: product.clicks,
+      conversionRate: product.conversionRate,
+    }));
+
+    const now = new Date().toISOString();
+
+    return {
+      sellerId,
+      totalVisitors,
+      whatsappInquiries: totalClicks,
+      productViews: totalVisitors,
+      productPerformance: {
+        lastDay: performance,
+        lastWeek: performance,
+        lastMonth: performance,
+        allTime: performance,
+      },
+      visitorData: {
+        last15Days: this.buildVisitorSeries(records, 15),
+        last30Days: this.buildVisitorSeries(records, 30),
+        last6Months: this.buildMonthlySeries(records, 6),
+        lastYear: this.buildMonthlySeries(records, 12),
+      },
+      updatedAt: now,
+    };
+  }
+
+  async getAnalytics(): Promise<Analytics> {
+    try {
+      return await this.buildAnalytics();
+    } catch (error) {
+      console.error('Error fetching analytics from API:', error);
+      const seller = await this.fetchSellerRecord();
+      const emptyPerformance: ProductPerformance[] = [];
+      return {
+        sellerId: seller?._id ?? '',
+        totalVisitors: 0,
+        whatsappInquiries: 0,
+        productViews: 0,
+        productPerformance: {
+          lastDay: emptyPerformance,
+          lastWeek: emptyPerformance,
+          lastMonth: emptyPerformance,
+          allTime: emptyPerformance,
+        },
+        visitorData: {
+          last15Days: [],
+          last30Days: [],
+          last6Months: [],
+          lastYear: [],
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  async saveAnalytics(analytics: Analytics): Promise<Analytics> {
+    // The backend analytics API requires additional context (business_id).
+    // For now, treat analytics as a derived read-only view and simply return the provided data.
+    return analytics;
   }
 
   async updateAnalytics(updates: Partial<Omit<Analytics, 'sellerId'>>): Promise<Analytics> {
-    const analytics = await this.getAnalytics();
-    const updatedAnalytics = { ...analytics, ...updates };
-    await this.saveAnalytics(updatedAnalytics);
-    return updatedAnalytics;
+    const current = await this.getAnalytics();
+    return { ...current, ...updates };
   }
 
-  // Export data to JSON format (for syncing with web app)
   async exportAllData(): Promise<{
     seller: Seller;
     categories: Category[];
     products: Product[];
     analytics: Analytics;
   }> {
-    const seller = await this.getSeller();
-    const categories = await this.getCategories();
-    const products = await this.getProducts();
-    const analytics = await this.getAnalytics();
+    const [seller, categories, products, analytics] = await Promise.all([
+      this.getSeller(),
+      this.getCategories(),
+      this.getProducts(),
+      this.getAnalytics(),
+    ]);
 
-    return {
-      seller,
-      categories,
-      products,
-      analytics,
-    };
+    return { seller, categories, products, analytics };
   }
 
-  // Import data from JSON format (for syncing with web app)
-  async importAllData(data: {
-    seller?: Seller;
-    categories?: Category[];
-    products?: Product[];
-    analytics?: Analytics;
-  }): Promise<void> {
-    try {
-      if (data.seller) {
-        await this.saveSeller(data.seller);
-      }
-      if (data.categories) {
-        await this.saveCategories(data.categories);
-      }
-      if (data.products) {
-        await this.saveProducts(data.products);
-      }
-      if (data.analytics) {
-        await this.saveAnalytics(data.analytics);
-      }
-      console.log('Data imported successfully!');
-    } catch (error) {
-      console.error('Error importing data:', error);
-    }
+  async importAllData(): Promise<void> {
+    throw new Error('Importing data from JSON is not supported with backend integration.');
   }
 
-  // Reset to default JSON data
   async resetToDefaults(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(this.INITIALIZED_KEY);
-      await this.initializeFromJSON();
-      console.log('Data reset to defaults!');
-    } catch (error) {
-      console.error('Error resetting to defaults:', error);
-    }
+    throw new Error('Reset to default is not supported against the live backend.');
   }
 
-  // Reset all data (clear everything)
   async resetAllData(): Promise<void> {
-    try {
-      await AsyncStorage.multiRemove([
-        this.SELLER_KEY,
-        this.PRODUCTS_KEY,
-        this.CATEGORIES_KEY,
-        this.ANALYTICS_KEY,
-        this.INITIALIZED_KEY,
-      ]);
-      console.log('All data cleared!');
-    } catch (error) {
-      console.error('Error resetting data:', error);
-    }
+    throw new Error('Clearing all backend data is not supported from the mobile app.');
+  }
+
+  resetCache(): void {
+    this.user = null;
+    this.sellerRecord = null;
+    this.businessRecord = null;
   }
 }
 
-// Export singleton instance
 export const dataService = new DataService();
+

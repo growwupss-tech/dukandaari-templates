@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -9,20 +9,43 @@ import { MailIcon } from '../components/MailIcon';
 import { SmartphoneIcon } from '../components/SmartphoneIcon';
 import { colors, spacing, fontSize, shadows } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Input } from '../components/ui/Input';
+import { login } from '../services/authService';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleLogin = (method: string) => {
-    setIsLoading(true);
+  const handleSignIn = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing Information', 'Please enter both email and password.');
+      return;
+    }
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await login(email.trim(), password);
       navigation.replace('Main');
-    }, 1500);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ??
+        error?.message ??
+        'Unable to sign in. Please verify your credentials.';
+      Alert.alert('Login Failed', message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePhoneLogin = () => {
+    Alert.alert(
+      'Coming Soon',
+      'Phone/OTP login is currently available on the web. Please continue with email for now.'
+    );
   };
 
   return (
@@ -43,9 +66,29 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.subtitle}>Sign in to start building your site</Text>
           </View>
 
+          <View style={styles.formContainer}>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              containerStyle={styles.inputWrapper}
+            />
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+              secureTextEntry
+              containerStyle={styles.inputWrapper}
+            />
+          </View>
+
           <View style={styles.buttonContainer}>
             <Button
-              onPress={() => handleLogin('Google')}
+              onPress={handleSignIn}
               disabled={isLoading}
               loading={isLoading}
               size="lg"
@@ -53,12 +96,12 @@ const LoginScreen: React.FC = () => {
             >
               <View style={styles.buttonContent}>
                 <MailIcon size={20} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Continue with Google</Text>
+                <Text style={styles.buttonText}>Continue with Email</Text>
               </View>
             </Button>
 
             <Button
-              onPress={() => handleLogin('Phone')}
+              onPress={handlePhoneLogin}
               disabled={isLoading}
               variant="outline"
               size="lg"
@@ -121,6 +164,14 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 16, // space-y-4
   },
+      formContainer: {
+        width: '100%',
+        gap: 16,
+        marginBottom: 24,
+      },
+      inputWrapper: {
+        width: '100%',
+      },
   button: {
     width: '100%',
     height: 56, // h-14

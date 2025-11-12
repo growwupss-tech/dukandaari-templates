@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ViewStyle, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { DrawerParamList } from '../navigation/AppNavigator';
@@ -29,8 +29,12 @@ const BusinessTypeScreen: React.FC = () => {
 
   const handleSelect = async (type: string) => {
     setSelectedType(type);
-    await dataService.updateSeller({ businessType: type });
-    navigation.navigate('Templates');
+    try {
+      await dataService.updateSeller({ businessType: type });
+      navigation.navigate('Templates');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update business type. Please try again.');
+    }
   };
 
   const handlePressIn = (scaleAnim: Animated.Value) => {

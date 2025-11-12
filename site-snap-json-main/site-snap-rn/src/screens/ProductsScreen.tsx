@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { DrawerParamList } from '../navigation/AppNavigator';
@@ -23,38 +23,48 @@ const ProductsScreen: React.FC = () => {
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
-      const categoriesData = await dataService.getCategories();
-      const productsData = await dataService.getProducts();
-      setCategories(categoriesData);
-      setProducts(productsData);
+      try {
+        const [categoriesData, productsData] = await Promise.all([
+          dataService.getCategories(),
+          dataService.getProducts(),
+        ]);
+        setCategories(categoriesData);
+        setProducts(productsData);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to load products or categories. Please try again.');
+      }
     };
     loadData();
   }, []);
 
-  // Save categories to dataService whenever they change
-  useEffect(() => {
-    dataService.saveCategories(categories);
-  }, [categories]);
-
-  // Save products to dataService whenever they change
-  useEffect(() => {
-    dataService.saveProducts(products);
-  }, [products]);
-
   // When categories change, ensure all products have valid categories
   useEffect(() => {
     const validCategoryIds = categories.map(c => c.id);
-    const updatedProducts = products.map(product => {
-      if (product.categoryId && !validCategoryIds.includes(product.categoryId)) {
-        return { ...product, categoryId: "" };
-      }
-      return product;
-    });
-    
-    if (JSON.stringify(updatedProducts) !== JSON.stringify(products)) {
-      setProducts(updatedProducts);
+    const productsNeedingUpdate = products.filter(
+      (product) => product.categoryId && !validCategoryIds.includes(product.categoryId)
+    );
+
+    if (productsNeedingUpdate.length === 0) {
+      return;
     }
-  }, [categories]);
+
+    const syncProducts = async () => {
+      try {
+        await Promise.all(
+          productsNeedingUpdate.map((product) =>
+            dataService.updateProduct(product.id, { categoryId: null })
+          )
+        );
+
+        const refreshedProducts = await dataService.getProducts();
+        setProducts(refreshedProducts);
+      } catch (error) {
+        console.error('Failed to sync products after category changes:', error);
+      }
+    };
+
+    syncProducts();
+  }, [categories, products]);
 
   return (
     <View style={styles.container}>

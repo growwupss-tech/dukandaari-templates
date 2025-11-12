@@ -20,18 +20,31 @@ const CategoryList: React.FC<CategoryListProps> = ({ categories, setCategories }
       return;
     }
 
-    const newCategoryObj = await dataService.addCategory({ 
-      name: newCategory.trim(),
-      description: ""
-    });
-    setCategories([...categories, newCategoryObj]);
-    setNewCategory('');
-    Alert.alert('Success', 'Category added!');
+    try {
+      const newCategoryObj = await dataService.addCategory({
+        name: newCategory.trim(),
+      });
+      setCategories([...categories, newCategoryObj]);
+      setNewCategory('');
+      Alert.alert('Success', 'Category added!');
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ??
+        error?.message ??
+        'Could not add category. Please try again.';
+      Alert.alert('Error', message);
+    }
   };
 
-  const handleDelete = (categoryId: string) => {
-    setCategories(categories.filter(cat => cat.id !== categoryId));
-    Alert.alert('Success', 'Category deleted!');
+  const handleDelete = async (categoryId: string) => {
+    try {
+      await dataService.deleteCategory(categoryId);
+      setCategories(categories.filter(cat => cat.id !== categoryId));
+      Alert.alert('Success', 'Category deleted!');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      Alert.alert('Error', 'Could not delete category. Please try again.');
+    }
   };
 
   const renderCategory = ({ item }: { item: Category }) => (

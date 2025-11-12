@@ -21,6 +21,9 @@ const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const [isLoading, setIsLoading] = useState(false);
 
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback;
+
   const handleExportData = async () => {
     try {
       setIsLoading(true);
@@ -35,7 +38,7 @@ const SettingsScreen: React.FC = () => {
         [{ text: 'OK' }]
       );
     } catch (error) {
-      Alert.alert('Error', 'Failed to export data');
+      Alert.alert('Error', getErrorMessage(error, 'Failed to export data'));
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +60,7 @@ const SettingsScreen: React.FC = () => {
               await importDataFromJSON(jsonString);
               Alert.alert('Success', 'Data imported successfully!');
             } catch (error) {
-              Alert.alert('Error', 'Invalid JSON data. Please check and try again.');
+              Alert.alert('Error', getErrorMessage(error, 'Failed to import data. Please check and try again.'));
             } finally {
               setIsLoading(false);
             }
@@ -83,7 +86,7 @@ const SettingsScreen: React.FC = () => {
               await resetToDefaultData();
               Alert.alert('Success', 'Data reset to defaults!');
             } catch (error) {
-              Alert.alert('Error', 'Failed to reset data');
+              Alert.alert('Error', getErrorMessage(error, 'Failed to reset data'));
             } finally {
               setIsLoading(false);
             }
@@ -123,7 +126,7 @@ const SettingsScreen: React.FC = () => {
                 ]
               );
             } catch (error) {
-              Alert.alert('Error', 'Failed to clear data');
+              Alert.alert('Error', getErrorMessage(error, 'Failed to clear data'));
             } finally {
               setIsLoading(false);
             }

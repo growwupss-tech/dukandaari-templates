@@ -6,6 +6,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StoreIcon } from '../components/StoreIcon';
 import { colors, fontSize } from '../theme';
+import { getCurrentUser } from '../services/authService';
 
 type SplashScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -49,7 +50,17 @@ const SplashScreen: React.FC = () => {
 
     // Navigate after 2.5 seconds
     const timer = setTimeout(() => {
-      navigation.replace('Login');
+      getCurrentUser()
+        .then((user) => {
+          if (user) {
+            navigation.replace('Main');
+          } else {
+            navigation.replace('Login');
+          }
+        })
+        .catch(() => {
+          navigation.replace('Login');
+        });
     }, 2500);
 
     return () => clearTimeout(timer);

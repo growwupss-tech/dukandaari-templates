@@ -27,13 +27,17 @@ const SellerDetailsScreen: React.FC = () => {
   }, []);
 
   const loadData = async () => {
-    const seller = await dataService.getSeller();
-    setFormData({
-      name: seller.name || '',
-      businessName: seller.businessName || '',
-      phone: seller.phone || '',
-      workAddress: seller.workAddress || '',
-    });
+    try {
+      const seller = await dataService.getSeller();
+      setFormData({
+        name: seller.name || '',
+        businessName: seller.businessName || '',
+        phone: seller.phone || '',
+        workAddress: seller.workAddress || '',
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load seller details. Please try again.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -42,8 +46,12 @@ const SellerDetailsScreen: React.FC = () => {
       return;
     }
 
-    await dataService.updateSeller(formData);
-    navigation.navigate('BusinessType');
+    try {
+      await dataService.updateSeller(formData);
+      navigation.navigate('BusinessType');
+    } catch (error) {
+      Alert.alert('Error', 'Unable to save your details. Please try again.');
+    }
   };
 
   return (

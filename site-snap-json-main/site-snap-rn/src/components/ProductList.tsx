@@ -58,16 +58,26 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       specifications: product.specifications,
       attributes: product.attributes,
       inventory: product.inventory,
-      categoryId: product.categoryId,
+      categoryId: product.categoryId ?? '',
       visible: product.visible,
     });
     setEditingIndex(index);
     setIsModalVisible(true);
   };
 
-  const handleDelete = (index: number) => {
-    setProducts(products.filter((_, i) => i !== index));
-    Alert.alert('Success', 'Product deleted!');
+  const handleDelete = async (index: number) => {
+    try {
+      const product = products[index];
+      if (!product) {
+        return;
+      }
+      await dataService.deleteProduct(product.id);
+      setProducts(products.filter((_, i) => i !== index));
+      Alert.alert('Success', 'Product deleted!');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      Alert.alert('Error', 'Could not delete product. Please try again.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -76,26 +86,36 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       return;
     }
 
-    if (editingIndex !== null) {
-      const product = products[editingIndex];
-      console.log('Updating product with images:', formData.images);
-      const updated = await dataService.updateProduct(product.id, formData as Partial<Product>);
-      console.log('Updated product:', updated);
-      if (updated) {
-        const updatedProducts = [...products];
-        updatedProducts[editingIndex] = updated;
-        setProducts(updatedProducts);
-        console.log('Products after update:', updatedProducts);
-        Alert.alert('Success', 'Product updated!');
-      }
-    } else {
-      const newProduct = await dataService.addProduct(formData as any);
-      setProducts([...products, newProduct]);
-      Alert.alert('Success', 'Product added!');
+    if (!formData.categoryId) {
+      Alert.alert('Error', 'Please select a category for the product.');
+      return;
     }
 
-    setIsModalVisible(false);
-    resetForm();
+    try {
+      if (editingIndex !== null) {
+        const product = products[editingIndex];
+        const updated = await dataService.updateProduct(product.id, formData as Partial<Product>);
+        if (updated) {
+          const updatedProducts = [...products];
+          updatedProducts[editingIndex] = updated;
+          setProducts(updatedProducts);
+          Alert.alert('Success', 'Product updated!');
+        }
+      } else {
+        const newProduct = await dataService.addProduct(formData as any);
+        setProducts([...products, newProduct]);
+        Alert.alert('Success', 'Product added!');
+      }
+
+      setIsModalVisible(false);
+      resetForm();
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ??
+        error?.message ??
+        'Unable to save the product. Please try again.';
+      Alert.alert('Error', message);
+    }
   };
 
   const resetForm = () => {

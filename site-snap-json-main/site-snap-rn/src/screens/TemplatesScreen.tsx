@@ -23,12 +23,16 @@ const TemplatesScreen: React.FC = () => {
   }, []);
 
   const loadData = async () => {
-    const templatesData = await dataService.getTemplates();
-    setTemplates(templatesData);
+    try {
+      const templatesData = await dataService.getTemplates();
+      setTemplates(templatesData);
 
-    const selectedIds = await dataService.getSelectedTemplates();
-    if (selectedIds.length > 0) {
-      setSelectedTemplate(selectedIds[0]);
+      const selectedIds = await dataService.getSelectedTemplates();
+      if (selectedIds.length > 0) {
+        setSelectedTemplate(selectedIds[0]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load templates. Please try again.');
     }
   };
 
@@ -38,8 +42,12 @@ const TemplatesScreen: React.FC = () => {
       return;
     }
 
-    await dataService.linkTemplatesToSeller([selectedTemplate]);
-    navigation.navigate('Products');
+    try {
+      await dataService.linkTemplatesToSeller([selectedTemplate]);
+      navigation.navigate('Products');
+    } catch (error) {
+      Alert.alert('Error', 'Could not save the selected template. Please try again.');
+    }
   };
 
   return (

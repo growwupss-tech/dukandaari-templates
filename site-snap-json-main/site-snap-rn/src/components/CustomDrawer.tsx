@@ -6,6 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, fontSize } from '../theme';
 import { Store, LayoutDashboard, User, Grid, Package, LogOut } from 'lucide-react-native';
+import { logout } from '../services/authService';
+import { dataService } from '../services/dataService';
 
 type CustomDrawerNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,12 +29,18 @@ const CustomDrawer: React.FC<DrawerContentComponentProps> = (props) => {
     { label: 'Product Management', icon: Package, screen: 'Products' },
   ];
 
-  const handleLogout = () => {
-    Alert.alert('Success', 'Logged out successfully');
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+      dataService.resetCache();
+      Alert.alert('Success', 'Logged out successfully');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
 
   return (
