@@ -53,9 +53,11 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     
     // Fetch attributes if product has attribute_ids
     let attributes: { name: string; values: string[] }[] = [];
+    
     if (product.attribute_ids && product.attribute_ids.length > 0) {
       console.log(`Fetching ${product.attribute_ids.length} attributes for product ${product.id}`);
-      for (const attrId of product.attribute_ids) {
+      for (let i = 0; i < product.attribute_ids.length; i++) {
+        const attrId = product.attribute_ids[i];
         if (!attrId) {
           console.warn('Skipping empty attribute ID');
           continue;
@@ -125,40 +127,54 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     }
 
     try {
-      // Get existing attribute_ids from product if editing
-      let existingAttributeIds: string[] = [];
-      const currentProduct = editingIndex !== null ? products[editingIndex] : null;
-      if (currentProduct) {
-        existingAttributeIds = currentProduct.attribute_ids || [];
-      }
+      // Get existing attribute_ids from the form data (populated during edit)
+      const existingAttributeIds = formData.attribute_ids || [];
 
-      // Save new attributes and collect their IDs
-      let newAttributeIds: string[] = [];
+      // Process attributes - update existing ones, save new ones
+      let finalAttributeIds: string[] = [];
       if (formData.attributes && formData.attributes.length > 0) {
-        for (const attr of formData.attributes) {
+        for (let i = 0; i < formData.attributes.length; i++) {
+          const attr = formData.attributes[i];
           if (attr.name && attr.values && attr.values.length > 0) {
             try {
-              const savedAttribute = await dataService.saveAttribute({
-                name: attr.name,
-                options: attr.values.filter((v: string) => v), // Filter out empty values
-              });
-              newAttributeIds.push(savedAttribute.id);
+              // Check if this attribute is an existing one (index < existing count)
+              const existingAttrId = existingAttributeIds[i];
+              
+              if (existingAttrId) {
+                // Extract the actual ID string (handle both string and object with _id)
+                const idToUpdate = typeof existingAttrId === 'object' && (existingAttrId as any)._id 
+                  ? (existingAttrId as any)._id 
+                  : existingAttrId;
+                
+                // Update existing attribute
+                console.log(`Updating attribute ${idToUpdate} with new values`);
+                await dataService.updateAttribute(idToUpdate, {
+                  name: attr.name,
+                  options: attr.values.filter((v: string) => v), // Filter out empty values
+                });
+                finalAttributeIds.push(idToUpdate);
+              } else {
+                // Save new attribute (added during edit)
+                console.log(`Saving new attribute: ${attr.name}`);
+                const savedAttribute = await dataService.saveAttribute({
+                  name: attr.name,
+                  options: attr.values.filter((v: string) => v), // Filter out empty values
+                });
+                finalAttributeIds.push(savedAttribute.id);
+              }
             } catch (error) {
-              console.error('Error saving attribute:', error);
+              console.error('Error processing attribute:', error);
             }
           }
         }
       }
-
-      // Combine existing and new attribute IDs
-      const allAttributeIds = [...new Set([...existingAttributeIds, ...newAttributeIds])];
 
       if (editingIndex !== null) {
         const product = products[editingIndex];
         const updateData: Partial<Product> = {
           ...formData,
           attributes: [], // Clear attributes as they're now in MongoDB
-          attribute_ids: allAttributeIds,
+          attribute_ids: finalAttributeIds,
         };
         const updated = await dataService.updateProduct(product.id, updateData);
         if (updated) {
@@ -171,7 +187,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
         const newProductData: any = {
           ...formData,
           attributes: [], // Clear attributes as they're now in MongoDB
-          attribute_ids: allAttributeIds,
+          attribute_ids: finalAttributeIds,
         };
         const newProduct = await dataService.addProduct(newProductData);
         setProducts([...products, newProduct]);
