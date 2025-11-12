@@ -603,8 +603,13 @@ class DataService {
 
       // Append existing http images as a JSON field so backend can keep them
       const existingImages = (product.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
+      if (__DEV__) {
+        console.log('[DataService][addProduct] existingImages ->', existingImages);
+        console.log('[DataService][addProduct] localImages ->', localImages);
+      }
       if (existingImages.length > 0) {
-        form.append('existing_images', JSON.stringify(existingImages));
+        // Use the same field name `images` so backend reads the current image list
+        form.append('images', JSON.stringify(existingImages));
       }
 
       // Append local files
@@ -653,6 +658,9 @@ class DataService {
       }
     }
 
+    if (__DEV__) {
+      console.log('[DataService][addProduct] JSON payload images ->', payload.images);
+    }
     const response = await apiClient.post<ApiResponse<ApiProduct>>('/api/products', payload);
     return this.mapProduct(response.data.data);
   }
@@ -674,7 +682,11 @@ class DataService {
       });
 
       const existingImages = (updates.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
-      if (existingImages.length > 0) form.append('existing_images', JSON.stringify(existingImages));
+      if (__DEV__) {
+        console.log('[DataService][updateProduct] existingImages ->', existingImages);
+        console.log('[DataService][updateProduct] localImages ->', localImages);
+      }
+      if (existingImages.length > 0) form.append('images', JSON.stringify(existingImages));
 
       localImages.forEach((uri, idx) => {
         const nameMatch = uri.split('/').pop() || `image_${Date.now()}_${idx}`;
@@ -716,6 +728,9 @@ class DataService {
       }
     }
 
+    if (__DEV__) {
+      console.log('[DataService][updateProduct] JSON payload images ->', payload.images);
+    }
     const response = await apiClient.put<ApiResponse<ApiProduct>>(
       `/api/products/${productId}`,
       payload
