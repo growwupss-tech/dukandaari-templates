@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { ActivityIndicator } from 'react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert, TextInput as RNTextInput } from 'react-native';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -35,6 +36,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     visible: 1,
   });
   const [newSpec, setNewSpec] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Simple fuzzy search implementation
   const filteredProducts = useMemo(() => {
@@ -126,6 +128,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       return;
     }
 
+    setIsSubmitting(true);
     try {
       // Get existing attribute_ids from the form data (populated during edit)
       const existingAttributeIds = formData.attribute_ids || [];
@@ -193,7 +196,6 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
         setProducts([...products, newProduct]);
         Alert.alert('Success', 'Product added!');
       }
-
       setIsModalVisible(false);
       resetForm();
     } catch (error: any) {
@@ -202,6 +204,8 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
         error?.message ??
         'Unable to save the product. Please try again.';
       Alert.alert('Error', message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -334,6 +338,16 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
             updateAttributeValue={updateAttributeValue}
             removeAttributeValue={removeAttributeValue}
             removeAttribute={removeAttribute}
+            isSubmitting={isSubmitting}
+            onImagesChange={(files: string[]) => {
+              setFormData({ ...formData, images: files });
+              if (editingIndex !== null) {
+                const copy = [...products];
+                const existing = copy[editingIndex] || ({} as Product);
+                copy[editingIndex] = { ...existing, images: files } as Product;
+                setProducts(copy);
+              }
+            }}
           />
         )}
       </View>
@@ -420,6 +434,16 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
           updateAttributeValue={updateAttributeValue}
           removeAttributeValue={removeAttributeValue}
           removeAttribute={removeAttribute}
+          isSubmitting={isSubmitting}
+          onImagesChange={(files: string[]) => {
+            setFormData({ ...formData, images: files });
+            if (editingIndex !== null) {
+              const copy = [...products];
+              const existing = copy[editingIndex] || ({} as Product);
+              copy[editingIndex] = { ...existing, images: files } as Product;
+              setProducts(copy);
+            }
+          }}
         />
       )}
     </View>
@@ -666,6 +690,8 @@ interface ProductFormModalProps {
   updateAttributeValue: (attrIndex: number, valueIndex: number, value: string) => void;
   removeAttributeValue: (attrIndex: number, valueIndex: number) => void;
   removeAttribute: (index: number) => void;
+  onImagesChange?: (files: string[]) => void;
+  isSubmitting?: boolean;
 }
 
 const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -686,13 +712,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   updateAttributeValue,
   removeAttributeValue,
   removeAttribute,
+  onImagesChange,
+  isSubmitting,
 }) => {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>{isEditing ? 'Edit Product' : 'Add New Product'}</Text>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity
+            onPress={() => {
+              if (!isSubmitting) onClose();
+            }}
+            disabled={!!isSubmitting}
+            style={{ opacity: isSubmitting ? 0.5 : 1 }}
+          >
             <Text style={styles.closeButton}>✕</Text>
           </TouchableOpacity>
         </View>
@@ -793,7 +827,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <Text style={styles.label}>Images</Text>
             <FileUploader
               files={formData.images || []}
-              onFilesChange={(files) => setFormData({ ...formData, images: files })}
+              onFilesChange={(files) => {
+                setFormData({ ...formData, images: files });
+                if (onImagesChange) onImagesChange(files);
+              }}
               type="image"
             />
           </View>
@@ -883,10 +920,26 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             ))}
           </View>
 
-          <Button onPress={onSubmit} style={styles.submitButton}>
-            <Text style={styles.submitButtonText}>{isEditing ? 'Update Product' : 'Add Product'}</Text>
+          <Button onPress={onSubmit} style={styles.submitButton} disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>Uploading...</Text>
+              </View>
+            ) : (
+              <Text style={styles.submitButtonText}>{isEditing ? 'Update Product' : 'Add Product'}</Text>
+            )}
           </Button>
         </ScrollView>
+        {isSubmitting && (
+          <View style={styles.fullscreenOverlay} pointerEvents="auto">
+            <View style={styles.overlayContent}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+              <Text style={styles.overlayText}>Uploading, please wait...</Text>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -1484,6 +1537,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize.md,
     fontWeight: '600',
+  },
+  fullscreenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  overlayContent: {
+    padding: spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  overlayText: {
+    marginTop: spacing.sm,
+    color: '#FFFFFF',
+    fontSize: fontSize.md,
   },
 });
 

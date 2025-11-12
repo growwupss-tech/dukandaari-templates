@@ -1,6 +1,7 @@
 import templatesData from '../data/templates.json';
 import { apiClient } from '../lib/apiClient';
 import { getCurrentUser, AuthUser } from './authService';
+import { getToken } from '../lib/tokenStorage';
 
 export interface Seller {
   id: string;
@@ -571,7 +572,8 @@ class DataService {
     if (product.visible !== undefined) payload.is_visible = product.visible === 1;
     if (product.attribute_ids !== undefined) payload.attribute_ids = product.attribute_ids;
     if (product.images) {
-      payload.images = product.images.filter((uri) => uri.startsWith('http'));
+      // Allow sending already-hosted URLs and data URIs (base64) so backend can upload to Cloudinary
+      payload.images = product.images.filter((uri) => typeof uri === 'string' && (uri.startsWith('http') || uri.startsWith('data:')));
     }
     return payload;
   }
@@ -583,12 +585,137 @@ class DataService {
     const payload = this.prepareProductPayload(product);
     payload.seller_id = sellerId;
 
+    // If there are local files (non-http) in images, send multipart/form-data so multer can process them
+    const localImages = (product.images || []).filter((uri) => typeof uri === 'string' && !uri.startsWith('http'));
+    if (localImages.length > 0) {
+      const form = new FormData();
+      // Append product fields
+      Object.keys(payload).forEach((key) => {
+        const value = (payload as any)[key];
+        if (value === undefined || value === null) return;
+        // If arrays or objects, stringify
+        if (typeof value === 'object') {
+          form.append(key, JSON.stringify(value));
+        } else {
+          form.append(key, String(value));
+        }
+      });
+
+      // Append existing http images as a JSON field so backend can keep them
+      const existingImages = (product.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
+      if (existingImages.length > 0) {
+        form.append('existing_images', JSON.stringify(existingImages));
+      }
+
+      // Append local files
+      localImages.forEach((uri, idx) => {
+        // Extract filename
+        const nameMatch = uri.split('/').pop() || `image_${Date.now()}_${idx}`;
+        // Infer mime type from extension
+        const extMatch = nameMatch.match(/\.([a-zA-Z0-9]+)$/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : '';
+        let mime = 'image/jpeg';
+        if (ext === 'png') mime = 'image/png';
+        else if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+        else if (ext === 'gif') mime = 'image/gif';
+
+        // In React Native, append file as { uri, name, type }
+        (form as any).append('images', {
+          uri,
+          name: nameMatch,
+          type: mime,
+        });
+      });
+
+      if (__DEV__) {
+        console.log('[DataService] Sending multipart form with localImages:', localImages.length);
+      }
+
+      // Use fetch for multipart requests in React Native (more reliable than axios/FormData)
+      try {
+        const token = await getToken();
+        const base = apiClient.defaults.baseURL || '';
+        const url = `${base.replace(/\/$/, '')}/api/products`;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form as any,
+        });
+
+        const json = await resp.json();
+        if (!resp.ok) {
+          throw new Error(json?.message || `Upload failed with status ${resp.status}`);
+        }
+        return this.mapProduct(json.data);
+      } catch (err) {
+        // rethrow so callers can handle
+        throw err;
+      }
+    }
+
     const response = await apiClient.post<ApiResponse<ApiProduct>>('/api/products', payload);
     return this.mapProduct(response.data.data);
   }
 
   async updateProduct(productId: string, updates: Partial<Product>): Promise<Product | null> {
     const payload = this.prepareProductPayload(updates);
+
+    const localImages = (updates.images || []).filter((uri) => typeof uri === 'string' && !uri.startsWith('http'));
+    if (localImages.length > 0) {
+      const form = new FormData();
+      Object.keys(payload).forEach((key) => {
+        const value = (payload as any)[key];
+        if (value === undefined || value === null) return;
+        if (typeof value === 'object') {
+          form.append(key, JSON.stringify(value));
+        } else {
+          form.append(key, String(value));
+        }
+      });
+
+      const existingImages = (updates.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
+      if (existingImages.length > 0) form.append('existing_images', JSON.stringify(existingImages));
+
+      localImages.forEach((uri, idx) => {
+        const nameMatch = uri.split('/').pop() || `image_${Date.now()}_${idx}`;
+        const extMatch = nameMatch.match(/\.([a-zA-Z0-9]+)$/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : '';
+        let mime = 'image/jpeg';
+        if (ext === 'png') mime = 'image/png';
+        else if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+        else if (ext === 'gif') mime = 'image/gif';
+
+        (form as any).append('images', {
+          uri,
+          name: nameMatch,
+          type: mime,
+        });
+      });
+
+      if (__DEV__) {
+        console.log('[DataService] Updating product with multipart form, localImages:', localImages.length);
+      }
+
+      try {
+        const token = await getToken();
+        const base = apiClient.defaults.baseURL || '';
+        const url = `${base.replace(/\/$/, '')}/api/products/${productId}`;
+        const resp = await fetch(url, {
+          method: 'PUT',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form as any,
+        });
+
+        const json = await resp.json();
+        if (!resp.ok) {
+          throw new Error(json?.message || `Upload failed with status ${resp.status}`);
+        }
+        return this.mapProduct(json.data);
+      } catch (err) {
+        throw err;
+      }
+    }
+
     const response = await apiClient.put<ApiResponse<ApiProduct>>(
       `/api/products/${productId}`,
       payload
