@@ -29,6 +29,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     videos: [],
     specifications: [],
     attributes: [],
+    attribute_ids: [],
     inventory: 'none',
     categoryId: '',
     visible: 1,
@@ -47,8 +48,39 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     );
   }, [searchQuery, products]);
 
-  const handleEdit = (index: number) => {
+  const handleEdit = async (index: number) => {
     const product = products[index];
+    
+    // Fetch attributes if product has attribute_ids
+    let attributes: { name: string; values: string[] }[] = [];
+    if (product.attribute_ids && product.attribute_ids.length > 0) {
+      console.log(`Fetching ${product.attribute_ids.length} attributes for product ${product.id}`);
+      for (const attrId of product.attribute_ids) {
+        if (!attrId) {
+          console.warn('Skipping empty attribute ID');
+          continue;
+        }
+        try {
+          // Handle both string IDs and object references with _id
+          const idToFetch = (typeof attrId === 'object' && (attrId as any)._id) ? (attrId as any)._id : attrId;
+          console.log(`Fetching attribute with ID: ${idToFetch}`);
+          
+          const attribute = await dataService.getAttributeById(attrId);
+          if (attribute) {
+            attributes.push({
+              name: attribute.name,
+              values: attribute.options,
+            });
+          } else {
+            console.warn(`Failed to fetch attribute: ${idToFetch}`);
+          }
+        } catch (error: any) {
+          console.error(`Error fetching attribute:`, error.message);
+        }
+      }
+      console.log(`Successfully fetched ${attributes.length} attributes`);
+    }
+
     setFormData({
       name: product.name,
       price: product.price,
@@ -56,7 +88,8 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       images: product.images,
       videos: product.videos,
       specifications: product.specifications,
-      attributes: product.attributes,
+      attributes: attributes.length > 0 ? attributes : product.attributes,
+      attribute_ids: product.attribute_ids,
       inventory: product.inventory,
       categoryId: product.categoryId ?? '',
       visible: product.visible,
@@ -92,9 +125,42 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     }
 
     try {
+      // Get existing attribute_ids from product if editing
+      let existingAttributeIds: string[] = [];
+      const currentProduct = editingIndex !== null ? products[editingIndex] : null;
+      if (currentProduct) {
+        existingAttributeIds = currentProduct.attribute_ids || [];
+      }
+
+      // Save new attributes and collect their IDs
+      let newAttributeIds: string[] = [];
+      if (formData.attributes && formData.attributes.length > 0) {
+        for (const attr of formData.attributes) {
+          if (attr.name && attr.values && attr.values.length > 0) {
+            try {
+              const savedAttribute = await dataService.saveAttribute({
+                name: attr.name,
+                options: attr.values.filter((v: string) => v), // Filter out empty values
+              });
+              newAttributeIds.push(savedAttribute.id);
+            } catch (error) {
+              console.error('Error saving attribute:', error);
+            }
+          }
+        }
+      }
+
+      // Combine existing and new attribute IDs
+      const allAttributeIds = [...new Set([...existingAttributeIds, ...newAttributeIds])];
+
       if (editingIndex !== null) {
         const product = products[editingIndex];
-        const updated = await dataService.updateProduct(product.id, formData as Partial<Product>);
+        const updateData: Partial<Product> = {
+          ...formData,
+          attributes: [], // Clear attributes as they're now in MongoDB
+          attribute_ids: allAttributeIds,
+        };
+        const updated = await dataService.updateProduct(product.id, updateData);
         if (updated) {
           const updatedProducts = [...products];
           updatedProducts[editingIndex] = updated;
@@ -102,7 +168,12 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
           Alert.alert('Success', 'Product updated!');
         }
       } else {
-        const newProduct = await dataService.addProduct(formData as any);
+        const newProductData: any = {
+          ...formData,
+          attributes: [], // Clear attributes as they're now in MongoDB
+          attribute_ids: allAttributeIds,
+        };
+        const newProduct = await dataService.addProduct(newProductData);
         setProducts([...products, newProduct]);
         Alert.alert('Success', 'Product added!');
       }
@@ -127,6 +198,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       videos: [],
       specifications: [],
       attributes: [],
+      attribute_ids: [],
       inventory: 'none',
       categoryId: '',
       visible: 1,
@@ -190,7 +262,27 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
     setFormData({ ...formData, attributes: newAttributes });
   };
 
-  const removeAttribute = (index: number) => {
+  const removeAttribute = async (index: number) => {
+    const attributeToRemove = formData.attributes?.[index];
+    
+    // If editing an existing product and attribute is from existing product
+    if (editingIndex !== null && attributeToRemove) {
+      const product = products[editingIndex];
+      const attributeIds = product.attribute_ids || [];
+      
+      // Remove the attribute ID from the product's attribute_ids
+      if (attributeIds.length > 0) {
+        try {
+          const updatedAttributeIds = attributeIds.filter((_, i) => i !== index);
+          await dataService.updateProduct(product.id, {
+            attribute_ids: updatedAttributeIds,
+          } as any);
+        } catch (error) {
+          console.error('Error updating product attributes:', error);
+        }
+      }
+    }
+
     setFormData({
       ...formData,
       attributes: (formData.attributes || []).filter((_, i) => i !== index),
@@ -326,8 +418,52 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, categories }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [attributes, setAttributes] = useState<{ name: string; options: string[] }[]>([]);
+  const [loadingAttributes, setLoadingAttributes] = useState(false);
+  
   const allMedia = [...(product.images || []), ...(product.videos || [])];
   const hasMultipleMedia = allMedia.length > 1;
+
+  // Fetch attributes when product loads or changes
+  React.useEffect(() => {
+    const fetchAttributes = async () => {
+      if (product.attribute_ids && product.attribute_ids.length > 0) {
+        setLoadingAttributes(true);
+        const fetchedAttributes: { name: string; options: string[] }[] = [];
+        console.log(`ProductCard: Fetching ${product.attribute_ids.length} attributes for product ${product.id}`);
+        
+        for (const attrId of product.attribute_ids) {
+          if (!attrId) {
+            console.warn('ProductCard: Skipping empty attribute ID');
+            continue;
+          }
+          try {
+            // Handle both string IDs and object references with _id
+            const idToFetch = (typeof attrId === 'object' && (attrId as any)._id) ? (attrId as any)._id : attrId;
+            console.log(`ProductCard: Fetching attribute with ID: ${idToFetch}`);
+            
+            const attribute = await dataService.getAttributeById(attrId);
+            if (attribute) {
+              fetchedAttributes.push({
+                name: attribute.name,
+                options: attribute.options,
+              });
+            } else {
+              console.warn(`ProductCard: Failed to fetch attribute ${idToFetch}`);
+            }
+          } catch (error: any) {
+            console.error(`ProductCard: Error fetching attribute:`, error.message);
+          }
+        }
+        
+        console.log(`ProductCard: Successfully fetched ${fetchedAttributes.length} attributes`);
+        setAttributes(fetchedAttributes);
+        setLoadingAttributes(false);
+      }
+    };
+
+    fetchAttributes();
+  }, [product.id, product.attribute_ids]);
 
   // Reset media index when product changes
   React.useEffect(() => {
@@ -461,22 +597,31 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, ca
         )}
 
         {/* Attributes */}
-        {product.attributes && product.attributes.some((attr: any) => attr.name && attr.values.some((v: string) => v)) && (
+        {product.attribute_ids && product.attribute_ids.length > 0 && (
           <View style={styles.attributesContainer}>
-            {product.attributes.map((attr: any, idx: number) => (
-              attr.name && attr.values.some((v: string) => v) && (
-                <View key={idx} style={styles.attributeSection}>
-                  <Text style={styles.attributeName}>{attr.name.toUpperCase()}</Text>
-                  <View style={styles.attributeValues}>
-                    {attr.values.filter((v: string) => v).map((value: string, vIdx: number) => (
-                      <View key={vIdx} style={styles.attributeValue}>
-                        <Text style={styles.attributeValueText}>{value}</Text>
-                      </View>
-                    ))}
+            <Text style={styles.attributesLabel}>ATTRIBUTES</Text>
+            {loadingAttributes ? (
+              <Text style={styles.loadingText}>Loading attributes...</Text>
+            ) : attributes.length > 0 ? (
+              <View style={styles.attributesListContainer}>
+                {attributes.map((attr: any, idx: number) => (
+                  <View key={idx} style={styles.attributeDisplaySection}>
+                    <Text style={styles.attributeDisplayName}>{attr.name.toUpperCase()}</Text>
+                    <View style={styles.attributeDisplayValues}>
+                      {attr.options && attr.options.map((option: string, oIdx: number) => (
+                        <View key={oIdx} style={styles.attributeDisplayValue}>
+                          <Text style={styles.attributeDisplayValueText}>{option}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )
-            ))}
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.attributeIdsText}>
+                {product.attribute_ids.length} attribute{product.attribute_ids.length !== 1 ? 's' : ''} saved
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -1006,6 +1151,53 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border + '80',
     gap: spacing.md,
+  },
+  attributesLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: 'bold',
+    color: colors.foreground,
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+  },
+  attributeIdsText: {
+    fontSize: fontSize.xs,
+    color: colors.mutedForeground,
+    fontStyle: 'italic',
+  },
+  loadingText: {
+    fontSize: fontSize.xs,
+    color: colors.mutedForeground,
+    fontStyle: 'italic',
+  },
+  attributesListContainer: {
+    gap: spacing.md,
+  },
+  attributeDisplaySection: {
+    gap: spacing.sm,
+  },
+  attributeDisplayName: {
+    fontSize: fontSize.xs,
+    fontWeight: 'bold',
+    color: colors.foreground,
+    letterSpacing: 1,
+  },
+  attributeDisplayValues: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  attributeDisplayValue: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primary + '20',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  attributeDisplayValueText: {
+    fontSize: fontSize.xs,
+    fontWeight: '500',
+    color: colors.primary,
   },
   attributeSection: {
     gap: spacing.sm,

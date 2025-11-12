@@ -43,11 +43,20 @@ export interface Product {
   inventory: 'none' | 'in stock' | 'out of stock';
   specifications: string[];
   attributes: { name: string; values: string[] }[];
+  attribute_ids: string[];
   visible: number;
   views: number;
   clicks: number;
   inquiries: number;
   conversionRate: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Attribute {
+  id: string;
+  name: string;
+  options: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +134,14 @@ type ApiCategory = {
   _id: string;
   category_name: string;
   seller_id: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApiAttribute = {
+  _id: string;
+  attribute_name: string;
+  options: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -258,6 +275,16 @@ class DataService {
     };
   }
 
+  private mapAttribute(attribute: ApiAttribute): Attribute {
+    return {
+      id: attribute._id,
+      name: attribute.attribute_name,
+      options: attribute.options || [],
+      createdAt: attribute.createdAt,
+      updatedAt: attribute.updatedAt,
+    };
+  }
+
   private normalizeInventory(value?: string): 'none' | 'in stock' | 'out of stock' {
     if (!value) return 'none';
     const normalized = value.toLowerCase();
@@ -284,6 +311,7 @@ class DataService {
       inventory: this.normalizeInventory(product.inventory),
       specifications: [],
       attributes: [],
+      attribute_ids: product.attribute_ids ?? [],
       visible: product.is_visible ? 1 : 0,
       views,
       clicks,
@@ -435,6 +463,65 @@ class DataService {
     return categories;
   }
 
+  async saveAttribute(attribute: { name: string; options: string[] }): Promise<Attribute> {
+    const payload = {
+      attribute_name: attribute.name,
+      options: attribute.options,
+    };
+
+    const response = await apiClient.post<ApiResponse<ApiAttribute>>('/api/attributes', payload);
+    console.log('Attribute created with response:', response.data);
+    return this.mapAttribute(response.data.data);
+  }
+
+  async getAttributeById(attributeId: any): Promise<Attribute | null> {
+    try {
+      // Extract _id if attributeId is an object, otherwise use it as string
+      let id = attributeId;
+      if (attributeId && typeof attributeId === 'object' && attributeId._id) {
+        id = attributeId._id;
+      }
+
+      // Validate attribute ID format
+      if (!id || typeof id !== 'string' || id.trim() === '') {
+        console.warn('Invalid attribute ID:', attributeId);
+        return null;
+      }
+
+      const response = await apiClient.get<ApiResponse<ApiAttribute>>(`/api/attributes/${id}`);
+      if (response.data.success && response.data.data) {
+        return this.mapAttribute(response.data.data);
+      }
+      return null;
+    } catch (error: any) {
+      const idStr = (attributeId && typeof attributeId === 'object') ? attributeId._id : attributeId;
+      if (error.response?.status === 404) {
+        console.warn(`Attribute not found: ${idStr}`);
+      } else if (error.response?.status === 500) {
+        console.error(`Server error fetching attribute ${idStr}:`, error.response?.data);
+      } else {
+        console.error('Error fetching attribute:', error.message);
+      }
+      return null;
+    }
+  }
+
+  async updateAttribute(attributeId: string, updates: { name?: string; options?: string[] }): Promise<Attribute> {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.attribute_name = updates.name;
+    if (updates.options !== undefined) payload.options = updates.options;
+
+    const response = await apiClient.put<ApiResponse<ApiAttribute>>(
+      `/api/attributes/${attributeId}`,
+      payload
+    );
+    return this.mapAttribute(response.data.data);
+  }
+
+  async deleteAttribute(attributeId: string): Promise<void> {
+    await apiClient.delete(`/api/attributes/${attributeId}`);
+  }
+
   async addCategory(category: { name: string }): Promise<Category> {
     const sellerRecord = await this.fetchSellerRecord();
     if (!sellerRecord) {
@@ -482,6 +569,7 @@ class DataService {
     }
     if (product.categoryId !== undefined) payload.category_id = product.categoryId;
     if (product.visible !== undefined) payload.is_visible = product.visible === 1;
+    if (product.attribute_ids !== undefined) payload.attribute_ids = product.attribute_ids;
     if (product.images) {
       payload.images = product.images.filter((uri) => uri.startsWith('http'));
     }
