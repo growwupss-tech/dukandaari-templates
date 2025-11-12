@@ -280,28 +280,30 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
 
   const removeAttribute = async (index: number) => {
     const attributeToRemove = formData.attributes?.[index];
+    const attributeIds = formData.attribute_ids || [];
+    const attributeIdToDelete = attributeIds[index];
     
-    // If editing an existing product and attribute is from existing product
-    if (editingIndex !== null && attributeToRemove) {
-      const product = products[editingIndex];
-      const attributeIds = product.attribute_ids || [];
-      
-      // Remove the attribute ID from the product's attribute_ids
-      if (attributeIds.length > 0) {
-        try {
-          const updatedAttributeIds = attributeIds.filter((_, i) => i !== index);
-          await dataService.updateProduct(product.id, {
-            attribute_ids: updatedAttributeIds,
-          } as any);
-        } catch (error) {
-          console.error('Error updating product attributes:', error);
-        }
+    // Delete the attribute from the attribute collection if it has an ID (it's a saved attribute)
+    if (attributeIdToDelete) {
+      try {
+        const idToDelete = typeof attributeIdToDelete === 'object' && (attributeIdToDelete as any)._id
+          ? (attributeIdToDelete as any)._id
+          : attributeIdToDelete;
+        
+        console.log(`Deleting attribute ${idToDelete} from collection`);
+        await dataService.deleteAttribute(idToDelete);
+      } catch (error) {
+        console.error('Error deleting attribute from collection:', error);
+        Alert.alert('Error', 'Could not delete attribute from collection');
       }
     }
-
+    
+    // Remove from form data
+    const updatedAttributeIds = attributeIds.filter((_, i) => i !== index);
     setFormData({
       ...formData,
       attributes: (formData.attributes || []).filter((_, i) => i !== index),
+      attribute_ids: updatedAttributeIds,
     });
   };
 
