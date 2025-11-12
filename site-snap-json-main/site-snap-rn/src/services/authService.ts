@@ -51,3 +51,27 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 }
 
+export async function verifyEmailOTP(
+  email: string,
+  otp: string,
+  password: string,
+  otpCode: string,
+  otpExpiresAt: string
+) {
+  const response = await apiClient.post('/api/auth/verify-email-otp', {
+    email,
+    otp,
+    password,
+    otpCode,
+    otpExpiresAt,
+  });
+
+  const { token, user } = response.data;
+  await setToken(token);
+  return { token, user };
+}
+
+export async function resendOTP(email: string) {
+  return apiClient.post('/api/auth/resend-otp', { email });
+}
+

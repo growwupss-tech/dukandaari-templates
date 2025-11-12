@@ -5,6 +5,8 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 // Import screens
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import SignUpOTPScreen from '../screens/SignUpOTPScreen';
 import SellerDetailsScreen from '../screens/SellerDetailsScreen';
 import BusinessTypeScreen from '../screens/BusinessTypeScreen';
 import TemplatesScreen from '../screens/TemplatesScreen';
@@ -16,6 +18,8 @@ import CustomDrawer from '../components/CustomDrawer';
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
+  SignUp: undefined;
+  SignUpOTP: { email: string; password: string; otpCode: string; otpExpiresAt: string };
   Main: undefined;
 };
 
@@ -55,6 +59,8 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen name="SignUpOTP" component={SignUpOTPScreen} />
       <Stack.Screen name="Main" component={DrawerNavigator} />
     </Stack.Navigator>
   );

@@ -46,5 +46,5 @@ export const API_BASE_URL: string =
   (extra.apiUrl as string | undefined) ??
   (process.env.EXPO_PUBLIC_API_URL as string | undefined) ??
   inferDevServerHost() ??
-  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+  (Platform.OS === 'android' ? 'http://192.168.29.113:3000' : 'http://localhost:3000');
 

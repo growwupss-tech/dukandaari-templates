@@ -6,50 +6,78 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { Button } from '../components/ui/Button';
 import { StoreIcon } from '../components/StoreIcon';
 import { MailIcon } from '../components/MailIcon';
-import { SmartphoneIcon } from '../components/SmartphoneIcon';
 import { colors, spacing, fontSize, shadows } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Input } from '../components/ui/Input';
-import { login } from '../services/authService';
+import { register } from '../services/authService';
 
-type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
-const LoginScreen: React.FC = () => {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
+const SignUpScreen: React.FC = () => {
+  const navigation = useNavigation<SignUpScreenNavigationProp>();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSignIn = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert('Missing Information', 'Please enter both email and password.');
-      return;
+  const validateForm = () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return false;
     }
+
+    if (!email.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email');
+      return false;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Error', 'Please enter a password');
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSignUp = async () => {
+    if (!validateForm()) return;
 
     try {
       setIsLoading(true);
-      await login(email.trim(), password);
-      navigation.replace('Main');
+      // Call register endpoint which sends OTP
+      const response = await register(email.trim(), password);
+
+      // Navigate to OTP screen with OTP data from response
+      const { otpCode, otpExpiresAt } = response.data;
+      navigation.navigate('SignUpOTP', {
+        email: email.trim(),
+        password,
+        otpCode,
+        otpExpiresAt,
+      });
     } catch (error: any) {
       const message =
         error?.response?.data?.message ??
         error?.message ??
-        'Unable to sign in. Please verify your credentials.';
-      Alert.alert('Login Failed', message);
+        'Failed to create account. Please try again.';
+      Alert.alert('Sign Up Failed', message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePhoneLogin = () => {
-    Alert.alert(
-      'Coming Soon',
-      'Phone/OTP login is currently available on the web. Please continue with email for now.'
-    );
-  };
-
-  const handleNavigateToSignUp = () => {
-    navigation.navigate('SignUp');
+  const handleNavigateToLogin = () => {
+    navigation.navigate('Login');
   };
 
   return (
@@ -66,8 +94,8 @@ const LoginScreen: React.FC = () => {
             <View style={styles.iconContainer}>
               <StoreIcon size={48} color={colors.primary} strokeWidth={1.5} />
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to start building your site</Text>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join us and start your journey</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -79,20 +107,31 @@ const LoginScreen: React.FC = () => {
               keyboardType="email-address"
               autoCapitalize="none"
               containerStyle={styles.inputWrapper}
+              editable={!isLoading}
             />
             <Input
               label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="Enter your password"
+              placeholder="Enter password"
               secureTextEntry
               containerStyle={styles.inputWrapper}
+              editable={!isLoading}
+            />
+            <Input
+              label="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm password"
+              secureTextEntry
+              containerStyle={styles.inputWrapper}
+              editable={!isLoading}
             />
           </View>
 
           <View style={styles.buttonContainer}>
             <Button
-              onPress={handleSignIn}
+              onPress={handleSignUp}
               disabled={isLoading}
               loading={isLoading}
               size="lg"
@@ -100,35 +139,22 @@ const LoginScreen: React.FC = () => {
             >
               <View style={styles.buttonContent}>
                 <MailIcon size={20} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Continue with Email</Text>
+                <Text style={styles.buttonText}>Create Account</Text>
               </View>
             </Button>
+          </View>
 
-            <Button
-              onPress={handlePhoneLogin}
-              disabled={isLoading}
-              variant="outline"
-              size="lg"
-              style={[styles.button, styles.outlineButton]}
-            >
-              <View style={styles.buttonContent}>
-                <SmartphoneIcon size={20} color={colors.foreground} />
-                <Text style={styles.outlineButtonText}>Continue with Phone</Text>
-              </View>
-            </Button>
+          {/* Already registered? Login */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already registered? </Text>
+            <TouchableOpacity onPress={handleNavigateToLogin} disabled={isLoading}>
+              <Text style={styles.linkText}>Login</Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.terms}>
             By continuing, you agree to our Terms & Privacy Policy
           </Text>
-
-          {/* Didn't sign in? Register */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Didn't sign in? </Text>
-            <TouchableOpacity onPress={handleNavigateToSignUp} disabled={isLoading}>
-              <Text style={styles.linkText}>Register</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -176,14 +202,14 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 16, // space-y-4
   },
-      formContainer: {
-        width: '100%',
-        gap: 16,
-        marginBottom: 24,
-      },
-      inputWrapper: {
-        width: '100%',
-      },
+  formContainer: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 24,
+  },
+  inputWrapper: {
+    width: '100%',
+  },
   button: {
     width: '100%',
     height: 56, // h-14
@@ -191,9 +217,6 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     ...shadows.soft,
-  },
-  outlineButton: {
-    borderWidth: 2, // border-2
   },
   buttonContent: {
     flexDirection: 'row',
@@ -206,22 +229,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '500',
   },
-  outlineButtonText: {
-    fontSize: 16, // text-base
-    color: colors.foreground,
-    fontWeight: '500',
-  },
-  terms: {
-    fontSize: 14, // text-sm
-    color: colors.mutedForeground,
-    textAlign: 'center',
-    marginTop: 32, // mt-8
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 24,
+    marginBottom: 24,
   },
   footerText: {
     fontSize: 14,
@@ -232,7 +245,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  terms: {
+    fontSize: 14, // text-sm
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: 16,
+  },
 });
 
-export default LoginScreen;
-
+export default SignUpScreen;
