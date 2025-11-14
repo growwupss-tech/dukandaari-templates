@@ -85,12 +85,16 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       console.log(`Successfully fetched ${attributes.length} attributes`);
     }
 
+    // Filter out invalid/empty images and videos when loading for edit
+    const validImages = (product.images || []).filter(img => img && img.trim() !== '');
+    const validVideos = (product.videos || []).filter(vid => vid && vid.trim() !== '');
+    
     setFormData({
       name: product.name,
       price: product.price,
       description: product.description,
-      images: product.images,
-      videos: product.videos,
+      images: validImages,
+      videos: validVideos,
       specifications: product.specifications,
       attributes: attributes.length > 0 ? attributes : product.attributes,
       attribute_ids: product.attribute_ids,
@@ -172,10 +176,16 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
         }
       }
 
+      // Filter out invalid/empty images and videos before saving
+      const validImages = (formData.images || []).filter(img => img && img.trim() !== '');
+      const validVideos = (formData.videos || []).filter(vid => vid && vid.trim() !== '');
+
       if (editingIndex !== null) {
         const product = products[editingIndex];
         const updateData: Partial<Product> = {
           ...formData,
+          images: validImages,
+          videos: validVideos,
           attributes: [], // Clear attributes as they're now in MongoDB
           attribute_ids: finalAttributeIds,
         };
@@ -189,6 +199,8 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
       } else {
         const newProductData: any = {
           ...formData,
+          images: validImages,
+          videos: validVideos,
           attributes: [], // Clear attributes as they're now in MongoDB
           attribute_ids: finalAttributeIds,
         };
@@ -340,11 +352,13 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
             removeAttribute={removeAttribute}
             isSubmitting={isSubmitting}
             onImagesChange={(files: string[]) => {
-              setFormData({ ...formData, images: files });
+              // Filter out any invalid/empty images
+              const validFiles = files.filter(img => img && img.trim() !== '');
+              setFormData({ ...formData, images: validFiles });
               if (editingIndex !== null) {
                 const copy = [...products];
                 const existing = copy[editingIndex] || ({} as Product);
-                copy[editingIndex] = { ...existing, images: files } as Product;
+                copy[editingIndex] = { ...existing, images: validFiles } as Product;
                 setProducts(copy);
               }
             }}
@@ -388,7 +402,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
         </Text>
       )}
 
-      <ScrollView style={styles.productsList} showsVerticalScrollIndicator={false}>
+      <View style={styles.productsList}>
         {filteredProducts.map((product, index) => {
           const originalIndex = products.findIndex(p => p.id === product.id);
           return (
@@ -410,7 +424,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
             <Text style={styles.noResultsText}>Try adjusting your search query</Text>
           </View>
         )}
-      </ScrollView>
+      </View>
 
       {isModalVisible && (
         <ProductFormModal
@@ -436,11 +450,13 @@ const ProductList: React.FC<ProductListProps> = ({ products, setProducts, catego
           removeAttribute={removeAttribute}
           isSubmitting={isSubmitting}
           onImagesChange={(files: string[]) => {
-            setFormData({ ...formData, images: files });
+            // Filter out any invalid/empty images
+            const validFiles = files.filter(img => img && img.trim() !== '');
+            setFormData({ ...formData, images: validFiles });
             if (editingIndex !== null) {
               const copy = [...products];
               const existing = copy[editingIndex] || ({} as Product);
-              copy[editingIndex] = { ...existing, images: files } as Product;
+              copy[editingIndex] = { ...existing, images: validFiles } as Product;
               setProducts(copy);
             }
           }}
@@ -463,7 +479,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete, ca
   const [attributes, setAttributes] = useState<{ name: string; options: string[] }[]>([]);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   
-  const allMedia = [...(product.images || []), ...(product.videos || [])];
+  // Filter out invalid/empty image and video URIs
+  const validImages = (product.images || []).filter(img => img && img.trim() !== '');
+  const validVideos = (product.videos || []).filter(vid => vid && vid.trim() !== '');
+  const allMedia = [...validImages, ...validVideos];
   const hasMultipleMedia = allMedia.length > 1;
 
   // Fetch attributes when product loads or changes
@@ -826,10 +845,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Images</Text>
             <FileUploader
-              files={formData.images || []}
+              files={(formData.images || []).filter(img => img && img.trim() !== '')}
               onFilesChange={(files) => {
-                setFormData({ ...formData, images: files });
-                if (onImagesChange) onImagesChange(files);
+                // Filter out any invalid/empty images, but allow empty array (for removing last image)
+                const validFiles = files.filter(img => img && img.trim() !== '');
+                setFormData({ ...formData, images: validFiles });
+                if (onImagesChange) onImagesChange(validFiles);
               }}
               type="image"
             />
@@ -1561,4 +1582,6 @@ const styles = StyleSheet.create({
   },
 });
 
+// Remove React.memo to ensure component always re-renders when parent updates
+// This prevents issues where products disappear when categories collapse
 export default ProductList;

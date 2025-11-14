@@ -13,6 +13,8 @@ interface FileUploaderProps {
 }
 
 const FileUploader: React.FC<FileUploaderProps> = ({ files, onFilesChange, type }) => {
+  // Ensure files is always an array
+  const safeFiles = Array.isArray(files) ? files : [];
   const pickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -27,14 +29,28 @@ const FileUploader: React.FC<FileUploaderProps> = ({ files, onFilesChange, type 
     });
 
     if (!result.canceled && result.assets) {
-      const newFiles = result.assets.map(asset => asset.uri);
-      onFilesChange([...files, ...newFiles]);
-      Alert.alert('Success', `${result.assets.length} ${type}(s) uploaded!`);
+      // Filter out any invalid/empty URIs
+      const newFiles = result.assets
+        .map(asset => asset.uri)
+        .filter(uri => uri && uri.trim() !== '');
+      if (newFiles.length > 0) {
+        // Filter out duplicates
+        const existingUris = new Set(safeFiles);
+        const uniqueNewFiles = newFiles.filter(uri => !existingUris.has(uri));
+        onFilesChange([...safeFiles, ...uniqueNewFiles]);
+        Alert.alert('Success', `${uniqueNewFiles.length} ${type}(s) uploaded!`);
+      }
     }
   };
 
   const removeFile = (index: number) => {
-    onFilesChange(files.filter((_, i) => i !== index));
+    if (index < 0 || index >= safeFiles.length) {
+      return; // Invalid index
+    }
+    const updatedFiles = safeFiles.filter((_, i) => i !== index);
+    // Always call onFilesChange, even if array is empty (allows removing last image)
+    // This ensures the last image can be removed
+    onFilesChange(updatedFiles);
   };
 
   return (
@@ -49,12 +65,15 @@ const FileUploader: React.FC<FileUploaderProps> = ({ files, onFilesChange, type 
         </Button>
       </View>
 
-      {files.length > 0 && (
+      {safeFiles.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filesContainer}>
-          {files.map((file, index) => (
-            <View key={index} style={styles.fileCard}>
+          {safeFiles.map((file, index) => (
+            <View key={`file-${index}-${file.substring(0, 20)}`} style={styles.fileCard}>
               {type === 'image' ? (
-                <Image source={{ uri: file }} style={styles.image} />
+                <Image 
+                  source={{ uri: file }} 
+                  style={styles.image}
+                />
               ) : (
                 <View style={styles.videoPlaceholder}>
                   <Text style={styles.videoIcon}>🎥</Text>

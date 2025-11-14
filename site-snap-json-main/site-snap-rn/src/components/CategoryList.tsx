@@ -142,5 +142,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CategoryList;
+export default React.memo(CategoryList);
 

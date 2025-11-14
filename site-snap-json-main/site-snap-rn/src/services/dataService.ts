@@ -571,10 +571,8 @@ class DataService {
     if (product.categoryId !== undefined) payload.category_id = product.categoryId;
     if (product.visible !== undefined) payload.is_visible = product.visible === 1;
     if (product.attribute_ids !== undefined) payload.attribute_ids = product.attribute_ids;
-    if (product.images) {
-      // Allow sending already-hosted URLs and data URIs (base64) so backend can upload to Cloudinary
-      payload.images = product.images.filter((uri) => typeof uri === 'string' && (uri.startsWith('http') || uri.startsWith('data:')));
-    }
+    // Don't include images here - handle separately in updateProduct/addProduct
+    // to properly support imagesToKeep for updates
     return payload;
   }
 
@@ -585,8 +583,13 @@ class DataService {
     const payload = this.prepareProductPayload(product);
     payload.seller_id = sellerId;
 
-    // If there are local files (non-http) in images, send multipart/form-data so multer can process them
-    const localImages = (product.images || []).filter((uri) => typeof uri === 'string' && !uri.startsWith('http'));
+    // Filter out invalid/empty images
+    const validImages = (product.images || []).filter(
+      (uri) => typeof uri === 'string' && uri.trim() !== '' && uri !== 'null' && uri !== 'undefined'
+    );
+    
+    // If there are local files (non-http, non-data) in images, send multipart/form-data so multer can process them
+    const localImages = validImages.filter((uri) => !uri.startsWith('http') && !uri.startsWith('data:'));
     if (localImages.length > 0) {
       const form = new FormData();
       // Append product fields
@@ -601,8 +604,8 @@ class DataService {
         }
       });
 
-      // Append existing http images as a JSON field so backend can keep them
-      const existingImages = (product.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
+      // Append existing http images and data URIs as a JSON field so backend can process them
+      const existingImages = validImages.filter((uri) => uri.startsWith('http') || uri.startsWith('data:'));
       if (__DEV__) {
         console.log('[DataService][addProduct] existingImages ->', existingImages);
         console.log('[DataService][addProduct] localImages ->', localImages);
@@ -658,6 +661,13 @@ class DataService {
       }
     }
 
+    // When sending JSON (no local images), include valid images in payload
+    // Reuse validImages already declared above
+    if (validImages.length > 0) {
+      // Only include http URLs and data URIs in JSON payload
+      payload.images = validImages.filter((uri) => uri.startsWith('http') || uri.startsWith('data:'));
+    }
+    
     if (__DEV__) {
       console.log('[DataService][addProduct] JSON payload images ->', payload.images);
     }
@@ -668,7 +678,14 @@ class DataService {
   async updateProduct(productId: string, updates: Partial<Product>): Promise<Product | null> {
     const payload = this.prepareProductPayload(updates);
 
-    const localImages = (updates.images || []).filter((uri) => typeof uri === 'string' && !uri.startsWith('http'));
+    // Filter out invalid/empty images
+    const validImages = (updates.images || []).filter(
+      (uri) => typeof uri === 'string' && uri.trim() !== '' && uri !== 'null' && uri !== 'undefined'
+    );
+    
+    const localImages = validImages.filter((uri) => !uri.startsWith('http') && !uri.startsWith('data:'));
+    const existingImages = validImages.filter((uri) => uri.startsWith('http'));
+    
     if (localImages.length > 0) {
       const form = new FormData();
       Object.keys(payload).forEach((key) => {
@@ -681,12 +698,14 @@ class DataService {
         }
       });
 
-      const existingImages = (updates.images || []).filter((uri) => typeof uri === 'string' && uri.startsWith('http'));
+      // Send imagesToKeep so backend knows which existing images to keep
+      // This is critical for proper image deletion
+      form.append('imagesToKeep', JSON.stringify(existingImages));
+      
       if (__DEV__) {
-        console.log('[DataService][updateProduct] existingImages ->', existingImages);
-        console.log('[DataService][updateProduct] localImages ->', localImages);
+        console.log('[DataService][updateProduct] existingImages (to keep) ->', existingImages);
+        console.log('[DataService][updateProduct] localImages (to upload) ->', localImages);
       }
-      if (existingImages.length > 0) form.append('images', JSON.stringify(existingImages));
 
       localImages.forEach((uri, idx) => {
         const nameMatch = uri.split('/').pop() || `image_${Date.now()}_${idx}`;
@@ -731,6 +750,16 @@ class DataService {
     if (__DEV__) {
       console.log('[DataService][updateProduct] JSON payload images ->', payload.images);
     }
+    
+    // When sending JSON (no local images), we still need to send imagesToKeep
+    // Reuse validImages and existingImages already declared above
+    // Send imagesToKeep so backend knows which images to keep
+    if (updates.images !== undefined) {
+      payload.imagesToKeep = existingImages;
+      // Don't send images in payload when using imagesToKeep
+      delete payload.images;
+    }
+    
     const response = await apiClient.put<ApiResponse<ApiProduct>>(
       `/api/products/${productId}`,
       payload

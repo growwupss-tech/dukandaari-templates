@@ -24,47 +24,24 @@ const ProductsScreen: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('🔄 [ProductsScreen] Loading data...');
         const [categoriesData, productsData] = await Promise.all([
           dataService.getCategories(),
           dataService.getProducts(),
         ]);
+        console.log('✅ [ProductsScreen] Data loaded:', { categories: categoriesData.length, products: productsData.length });
         setCategories(categoriesData);
         setProducts(productsData);
       } catch (error) {
+        console.error('❌ [ProductsScreen] Load error:', error);
         Alert.alert('Error', 'Failed to load products or categories. Please try again.');
       }
     };
     loadData();
   }, []);
 
-  // When categories change, ensure all products have valid categories
-  useEffect(() => {
-    const validCategoryIds = categories.map(c => c.id);
-    const productsNeedingUpdate = products.filter(
-      (product) => product.categoryId && !validCategoryIds.includes(product.categoryId)
-    );
-
-    if (productsNeedingUpdate.length === 0) {
-      return;
-    }
-
-    const syncProducts = async () => {
-      try {
-        await Promise.all(
-          productsNeedingUpdate.map((product) =>
-            dataService.updateProduct(product.id, { categoryId: null })
-          )
-        );
-
-        const refreshedProducts = await dataService.getProducts();
-        setProducts(refreshedProducts);
-      } catch (error) {
-        console.error('Failed to sync products after category changes:', error);
-      }
-    };
-
-    syncProducts();
-  }, [categories, products]);
+  // Removed the second useEffect that was causing products to reset
+  // when categories changed. This was the root cause of products disappearing!
 
   return (
     <View style={styles.container}>
@@ -86,7 +63,7 @@ const ProductsScreen: React.FC = () => {
                 onPress={() => setCategoriesOpen(!categoriesOpen)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sectionTitle}>Categories</Text>
+                <Text style={styles.sectionTitle}>Categories ({categories.length})</Text>
                 <View style={styles.toggleButton}>
                   <Text style={styles.toggleText}>{categoriesOpen ? 'Collapse' : 'Expand'}</Text>
                 </View>
@@ -104,14 +81,18 @@ const ProductsScreen: React.FC = () => {
                 onPress={() => setProductsOpen(!productsOpen)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sectionTitle}>Products</Text>
+                <Text style={styles.sectionTitle}>Products ({products.length})</Text>
                 <View style={styles.toggleButton}>
                   <Text style={styles.toggleText}>{productsOpen ? 'Collapse' : 'Expand'}</Text>
                 </View>
               </TouchableOpacity>
               {productsOpen && (
                 <View style={styles.sectionContent}>
-                  <ProductList products={products} setProducts={setProducts} categories={categories} />
+                  <ProductList 
+                    products={products} 
+                    setProducts={setProducts} 
+                    categories={categories} 
+                  />
                 </View>
               )}
             </View>
